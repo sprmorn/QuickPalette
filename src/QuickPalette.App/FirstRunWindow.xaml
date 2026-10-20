@@ -1,0 +1,346 @@
+<Window x:Class="QuickPalette.App.FirstRunWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:behaviors="clr-namespace:QuickPalette.App.Behaviors"
+        behaviors:MouseWheelScrollBehavior.Enabled="True"
+        Title="轻启 - 首次使用引导"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Width="700"
+        Height="580"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <!-- 候选项样式 -->
+        <Style x:Key="CandidateItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 主按钮样式 -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 次要按钮样式 -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource InputBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 候选项内小按钮 -->
+        <Style x:Key="ItemActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="4,1"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="12"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" Opacity="0.5" ShadowDepth="0"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题 -->
+            <TextBlock x:Name="WelcomeTitle"
+                       Grid.Row="0"
+                       Text="欢迎使用轻启"
+                       Foreground="{DynamicResource TextBrush}"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       Margin="0,20,0,10"/>
+
+            <!-- 扫描状态 / 进度 -->
+            <StackPanel Grid.Row="1" Margin="20,0,0,12">
+                <TextBlock x:Name="ScanStatusText"
+                           Text="正在扫描已安装的应用..."
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           FontSize="14"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,8"/>
+                <ProgressBar x:Name="ScanProgress"
+                             Height="4"
+                             Width="360"
+                             HorizontalAlignment="Center"
+                             IsIndeterminate="True"
+                             Foreground="{DynamicResource AccentBrush}"
+                             Background="{DynamicResource InputBrush}"
+                             BorderThickness="0"/>
+                <Button x:Name="ScanToggleButton"
+                        Content="取消扫描"
+                        Width="110"
+                        Height="28"
+                        HorizontalAlignment="Center"
+                        Margin="0,10,0,0"
+                        Click="ScanToggle_Click"
+                        Style="{StaticResource SecondaryButtonStyle}"/>
+            </StackPanel>
+
+            <!-- 候选列表 -->
+            <Border x:Name="CandidatePanel" Grid.Row="2"
+                    Margin="20,0"
+                    CornerRadius="8"
+                    Background="{DynamicResource SurfaceAltBrush}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 全选/搜索栏 -->
+                    <Border Grid.Row="0"
+                            Padding="12,8"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="0,0,0,1">
+                        <DockPanel>
+                            <CheckBox x:Name="SelectAllCheckBox"
+                                      Content="全选"
+                                      Foreground="{DynamicResource TextBrush}"
+                                      IsChecked="True"
+                                      Click="SelectAll_Click"
+                                      DockPanel.Dock="Left"
+                                      VerticalAlignment="Center"/>
+
+                            <TextBlock x:Name="CountText"
+                                       Text="已选 0 项"
+                                       Foreground="{DynamicResource HintBrush}"
+                                       FontSize="12"
+                                       DockPanel.Dock="Right"
+                                       VerticalAlignment="Center"
+                                       Margin="10,0"/>
+
+                            <TextBox x:Name="SearchBox"
+                                     Background="Transparent"
+                                     Foreground="{DynamicResource TextBrush}"
+                                     CaretBrush="{DynamicResource TextBrush}"
+                                     FontSize="13"
+                                     Padding="8,4"
+                                     BorderThickness="0"
+                                     VerticalContentAlignment="Center"
+                                     TextChanged="SearchBox_TextChanged"
+                                     Margin="10,0,0,0"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- 候选列表 -->
+                    <ListBox x:Name="CandidatesList"
+                             Grid.Row="1"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="8"
+                             SelectionMode="Multiple"
+                             ItemContainerStyle="{StaticResource CandidateItemStyle}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <CheckBox Grid.Column="0"
+                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                              Checked="CandidateCheck_Changed"
+                                              Unchecked="CandidateCheck_Changed"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,10,0"/>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   FontSize="13"
+                                                   FontWeight="Medium"/>
+                                        <TextBlock Text="{Binding Path}"
+                                                   Foreground="{DynamicResource HintBrush}"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Source}"
+                                                   Foreground="{DynamicResource HintBrush}"
+                                                   FontSize="11"
+                                                   HorizontalAlignment="Right"
+                                                   Margin="0,0,0,2"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="不再推荐"
+                                                    Style="{StaticResource ItemActionButtonStyle}"
+                                                    Click="NeverRecommend_Click"/>
+                                            <Button Content="隐藏此类"
+                                                    Style="{StaticResource ItemActionButtonStyle}"
+                                                    Click="HideKind_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- 完成/指引面板（导入后显示） -->
+            <Grid x:Name="DonePanel" Grid.Row="2" Margin="20,0" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,4">
+                        <TextBlock x:Name="DoneTitle"
+                                   Text="已导入应用"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,4,0,2"/>
+                        <TextBlock x:Name="DoneSubtitle"
+                                   Text="应用已就绪，先花 10 秒了解如何使用"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   FontSize="13"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,14"/>
+
+                        <!-- 如何打开 -->
+                        <Border Background="{DynamicResource SurfaceAltBrush}" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock x:Name="HowToOpenTitle"
+                                           Text="如何打开轻启"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock Foreground="{DynamicResource TextBrush}"
+                                           FontSize="13"
+                                           TextWrapping="Wrap"
+                                           LineHeight="22">
+                                    <Run x:Name="HowToOpenRun1" Text="按下快捷键 "/>
+                                    <Run x:Name="HotkeyRun" Text="Ctrl+Alt+Space" FontWeight="Bold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                    <Run x:Name="HowToOpenRun2" Text=" 即可随时唤起面板（可在设置中修改）。"/>
+                                    <Run x:Name="HowToOpenRun3" Text="输入应用或文件名称，按回车启动，全程无需鼠标。"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 支持功能 -->
+                        <Border Background="{DynamicResource SurfaceAltBrush}" CornerRadius="8" Padding="14,12">
+                            <StackPanel>
+                                <TextBlock x:Name="FeaturesTitle"
+                                           Text="支持的功能"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock x:Name="Feature1Text"
+                                           Text="· 应用快速启动：搜索应用名，回车即启动"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           FontSize="12.5"
+                                           TextWrapping="Wrap"
+                                           LineHeight="21"/>
+                                <TextBlock x:Name="Feature2Text"
+                                           Text="· 全盘文件搜索：像 Everything 一样秒搜本地文件（设置中开启）"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           FontSize="12.5"
+                                           TextWrapping="Wrap"
+                                           LineHeight="21"/>
+                                <TextBlock x:Name="Feature3Text"
+                                           Text="· 系统托盘常驻：左键点击托盘图标可随时呼出面板"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           FontSize="12.5"
+                                           TextWrapping="Wrap"
+                                           LineHeight="21"/>
+                                <TextBlock x:Name="Feature4Text"
+                                           Text="· 主题切换：深色 / 浅色 / 跟随系统（设置中修改）"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           FontSize="12.5"
+                                           TextWrapping="Wrap"
+                                           LineHeight="21"/>
+                                <TextBlock x:Name="Feature5Text"
+                                           Text="· 打开设置：右键点击系统托盘图标 → 设置，可修改热键、主题、文件搜索等"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           FontSize="12.5"
+                                           TextWrapping="Wrap"
+                                           LineHeight="21"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- 底部按钮 -->
+            <StackPanel Grid.Row="3"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Margin="0,15,0,20">
+                <Button x:Name="ImportButton"
+                        Content="导入选中的应用"
+                        Width="150"
+                        Height="36"
+                        Click="Import_Click"
+                        Style="{StaticResource PrimaryButtonStyle}"/>
+
+                <Button x:Name="SkipButton" Content="跳过，稍后添加"
+                        Width="120"
+                        Height="36"
+                        Click="Skip_Click"
+                        Margin="15,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"/>
+
+                <Button x:Name="DoneButton"
+                        Content="完成，开始使用"
+                        Width="150"
+                        Height="36"
+                        Click="Done_Click"
+                        Margin="15,0,0,0"
+                        Visibility="Collapsed"
+                        Style="{StaticResource PrimaryButtonStyle}"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

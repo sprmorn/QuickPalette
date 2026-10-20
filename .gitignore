@@ -1,0 +1,45 @@
+# ===== 构建产物 =====
+bin/
+obj/
+_build/
+*.user
+*.suo
+
+# ===== IDE / 编辑器 =====
+.vs/
+.vscode/
+.idea/
+*.rsuser
+
+# ===== 发布与安装产物 =====
+dist/
+*.zip
+*.msi
+*.exe
+!build/**/*.exe
+
+# ===== 运行时数据与日志 =====
+logs/
+*.log
+
+# ===== 临时文件 =====
+*.tmp
+*.bak
+*.swp
+Thumbs.db
+Desktop.ini
+
+# ===== 测试产物 =====
+TestResults/
+*.trx
+coverage*.json
+coverage*.xml
+
+# ===== 本地构建/验证工作区 =====
+build/out/
+_verify/
+_acl-report/
+
+# ===== 内部资料（不随仓库发布）=====
+轻启-全面代码审查报告.md
+轻启-代码审查报告-Domain-Application.md

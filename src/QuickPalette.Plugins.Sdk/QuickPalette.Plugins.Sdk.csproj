@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Description>轻启插件 SDK：插件清单与上下文契约（加载器 V3 启用）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 插件契约（IQuickPalettePlugin/IPluginContext/ISearchProvider/IAppSource/ILauncher）位于 Domain -->
+    <ProjectReference Include="..\QuickPalette.Domain\QuickPalette.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

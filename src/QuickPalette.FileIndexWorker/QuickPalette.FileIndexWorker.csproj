@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>QuickPalette.FileIndexWorker</AssemblyName>
+    <RootNamespace>QuickPalette.FileIndexWorker</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 与主程序共用品牌图标（提权 UAC 弹窗/任务管理器显示） -->
+    <ApplicationIcon>..\QuickPalette.App\Assets\app.ico</ApplicationIcon>
+    <!-- 后台驻留服务：关闭并发 GC（减少保留松散与后台线程开销）；
+         装载/落盘后由代码做压缩式回收并修剪工作集 -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickPalette.Infrastructure\QuickPalette.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

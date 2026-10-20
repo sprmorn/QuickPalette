@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuickPalette.Infrastructure\QuickPalette.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\QuickPalette.Domain\QuickPalette.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

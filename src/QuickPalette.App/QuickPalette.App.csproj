@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuickPalette.Application\QuickPalette.Application.csproj" />
+    <ProjectReference Include="..\QuickPalette.Infrastructure\QuickPalette.Infrastructure.csproj" />
+    <!-- 文件索引 Worker：先构建（仅依赖、不引用程序集），再复制 exe 到输出目录 -->
+    <ProjectReference Include="..\QuickPalette.FileIndexWorker\QuickPalette.FileIndexWorker.csproj"
+                      ReferenceOutputAssembly="false" />
+    <!-- 预览宿主进程（承载系统预览处理器，崩溃隔离）：同上模式；
+         x64 + x86 双位数（32 位进程内处理器走 x86 宿主） -->
+    <ProjectReference Include="..\QuickPalette.PreviewHost\QuickPalette.PreviewHost.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- x86 预览宿主不走 ProjectReference：它是 PlatformTarget=x86 的独立工程，
+         会被主程序发布的 RID 全局属性（win-x64）顶撞（NETSDK1032）；
+         改为显式构建并剥离 RuntimeIdentifier/SelfContained，仅作构建排序依赖 -->
+  </ItemGroup>
+  <Target Name="BuildPreviewHost32" BeforeTargets="BeforeBuild">
+    <MSBuild Projects="..\QuickPalette.PreviewHost\x86\QuickPalette.PreviewHost32.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="RuntimeIdentifier;SelfContained;RuntimeIdentifiers" />
+  </Target>
+
+  <ItemGroup>
+    <!-- Worker 宿主 exe + 托管程序集 + runtimeconfig/deps（缺一不可）；
+         仅复制到构建输出（F5 可用），发布输出由 build\publish.ps1 显式放置，
+         避免与 ProjectReference 发布传递的 RID 产物撞同一相对路径（NETSDK1152） -->
+    <None Include="..\QuickPalette.FileIndexWorker\bin\$(Configuration)\net9.0-windows\QuickPalette.FileIndexWorker.*"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="Never"
+          Visible="false" />
+    <!-- 预览宿主 exe 及其依赖产物（x64 + x86） -->
+    <None Include="..\QuickPalette.PreviewHost\bin\$(Configuration)\net9.0-windows\QuickPalette.PreviewHost.*"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="Never"
+          Visible="false" />
+    <None Include="..\QuickPalette.PreviewHost\x86\bin\$(Configuration)\net9.0-windows\QuickPalette.PreviewHost32.*"
+          TargetPath="previewhost32\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="Never"
+          Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- NHotkey.Wpf 已移除：热键走 P/Invoke RegisterHotKey（HotkeyService），该包为死引用 -->
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>1.0.0</Version>
+    <Product>轻启 QuickPalette</Product>
+    <Description>轻量 Windows 快捷启动器</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 应用图标资源：exe 图标 + 主题窗口/托盘图标 -->
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\icon-dark.png" />
+    <Resource Include="Assets\icon-light.png" />
+  </ItemGroup>
+
+</Project>

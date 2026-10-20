@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>QuickPalette.PreviewHost32</AssemblyName>
+    <RootNamespace>QuickPalette.PreviewHost</RootNamespace>
+    <ApplicationManifest>..\app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\QuickPalette.App\Assets\app.ico</ApplicationIcon>
+    <!-- x86 宿主：承载 32 位进程内预览处理器（WPS 系插件、Foxit 等），
+         与 x64 宿主（..\QuickPalette.PreviewHost.csproj）共用同一套源码 -->
+    <PlatformTarget>x86</PlatformTarget>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 共用上一级目录的全部源码（Program/Interop） -->
+    <Compile Include="..\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\QuickPalette.Infrastructure\QuickPalette.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
