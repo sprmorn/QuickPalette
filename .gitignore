@@ -39,6 +39,8 @@ coverage*.xml
 build/out/
 _verify/
 _acl-report/
+_acl-recovery/
+_msbuild/
 
 # ===== 内部资料（不随仓库发布）=====
 轻启-全面代码审查报告.md

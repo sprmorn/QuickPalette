@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" width="96" alt="轻启 QuickPalette logo">
+</p>
+
 # 轻启 QuickPalette
 
 Windows 本地**白名单快捷启动器**：托盘常驻、全局热键（默认 `Ctrl+Alt+Space`）唤起命令面板，支持中文/拼音/别名搜索，回车即启动。
@@ -17,7 +21,7 @@ Windows 本地**白名单快捷启动器**：托盘常驻、全局热键（默�
 
 ## 下载安装
 
-- **绿色版**：到 [Releases](../../releases) 下载 `轻启-x.y.z.zip`，解压后直接运行 `QuickPalette.exe`
+- **绿色版**：到 [Releases](../../releases) 下载 `轻启-x.y.z.zip`，解压后直接运行 `QuickPalette.App.exe`
 - **安装包**：下载 `轻启-Setup-x.y.z.exe`，按向导安装（可选开机自启）
 - **从源码构建**：见下文「构建与测试」
 
@@ -30,6 +34,7 @@ src/
   QuickPalette.Domain/         领域层（模型、契约、搜索/过滤/拼音引擎，零 UI 依赖）
   QuickPalette.Infrastructure/ 基础设施（JSON 存储/迁移/备份、扫描器、启动器、图标、文件索引）
   QuickPalette.FileIndexWorker/ 文件索引工作进程（提权，读 USN 变更日志建全盘文件索引）
+  QuickPalette.PreviewHost/    文档预览宿主进程（含 x86\ 32 位宿主，承载系统预览处理器）
   QuickPalette.Plugins.Sdk/    插件 SDK（契约与清单，V3 加载器预留）
 tests/                         xunit 单元测试（Domain / Infrastructure）
 tools/                         UsnDiag（USN 诊断）、ParseTest（索引快照诊断）
