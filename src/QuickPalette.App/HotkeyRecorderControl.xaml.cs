@@ -48,12 +48,42 @@ public partial class HotkeyRecorderControl : UserControl
         Loaded += (s, e) => RefreshDisplay();
         LostKeyboardFocus += (s, e) =>
         {
-            // 录制中点击了其他位置：取消录制，避免控件"看起来在录制"却收不到按键
-            if (_isRecording)
+            // 只有焦点真正离开本控件才取消录制。
+            // 注意：点"修改"时 RecordButton_Click 里的 Keyboard.Focus(this) 会让按钮失焦，
+            // 按钮的 LostKeyboardFocus 会冒泡到本控件（e.NewFocus 是控件自身，仍在内部）——
+            // 若不加判断就取消，刚进入的录制会被立刻回滚，表现为"点击修改没反应"。
+            if (_isRecording && !IsInsideControl(e.NewFocus))
             {
                 CancelRecording();
             }
         };
+    }
+
+    /// <summary>判断焦点目标是否位于本控件内部（含控件自身）</summary>
+    private bool IsInsideControl(object? element)
+    {
+        for (DependencyObject? current = element as DependencyObject;
+             current != null;
+             current = GetParent(current))
+        {
+            if (ReferenceEquals(current, this))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>取视觉树父级；非视觉对象（如内容元素）退回逻辑父级</summary>
+    private static DependencyObject? GetParent(DependencyObject element)
+    {
+        if (element is Visual or System.Windows.Media.Media3D.Visual3D)
+        {
+            return VisualTreeHelper.GetParent(element);
+        }
+
+        return (element as FrameworkContentElement)?.Parent;
     }
 
     /// <summary>
