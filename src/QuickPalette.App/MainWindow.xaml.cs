@@ -203,7 +203,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 显示面板：每次唤起都定位到光标所在屏幕中心（多显示器 / DPI 换算）。
+    /// 显示面板：每次唤起都定位到光标所在屏幕的中上方（多显示器 / DPI 换算）。
     /// </summary>
     public void ShowPalette()
     {
@@ -354,7 +354,7 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>把面板定位到光标所在屏幕（显示器）的工作区中心</summary>
+    /// <summary>把面板定位到光标所在屏幕（显示器）的中上方：水平居中、垂直靠上（约屏幕高度 15% 处）</summary>
     private void PositionAtCursorScreen()
     {
         try
@@ -386,8 +386,9 @@ public partial class MainWindow : Window
             var workWidth = workArea.Width / scale;
             var workHeight = workArea.Height / scale;
 
+            // 屏幕中上方：水平居中，顶部对齐工作区上方约 15% 处（面板随结果数向下展开）
             Left = workLeft + (workWidth - Width) / 2;
-            Top = workTop + (workHeight - Height) / 2;
+            Top = workTop + Math.Max(24, workHeight * 0.15);
         }
         catch (Exception ex)
         {
