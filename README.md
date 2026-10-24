@@ -8,6 +8,7 @@ Windows 本地**白名单快捷启动器**：托盘常驻、全局热键（默�
 
 - 拖拽 exe / 运行中捕获 / 开始菜单导入，三种方式把常用软件收进白名单
 - 拼音搜索：`wx` 找到「微信」，`vscode` 找到「Visual Studio Code」
+- 系统组件直达：注册表编辑器、任务管理器、设备管理器等系统工具、控制面板项、管理控制台、Windows 设置页、系统文件夹，中文名/英文名/命令名/拼音都能搜
 - 命令模式：输入 `>` 进入（`>settings`、`>capture`、`>refresh`、`>theme`、`>backup`、`>diag`、`>help`）
 - 本地优先：数据全部存 `%APPDATA%\QuickPalette\`，无账号无云依赖，自动备份可导出/导入
 
@@ -37,7 +38,7 @@ src/
   QuickPalette.PreviewHost/    文档预览宿主进程（含 x86\ 32 位宿主，承载系统预览处理器）
   QuickPalette.Plugins.Sdk/    插件 SDK（契约与清单，V3 加载器预留）
 tests/                         xunit 单元测试（Domain / Infrastructure）
-tools/                         UsnDiag（USN 诊断）、ParseTest（索引快照诊断）
+tools/                         UsnDiag（USN 诊断）、ParseTest（索引快照诊断）、catalog-gen（系统组件目录生成器 + 源数据）
 build/                         打包脚本（publish.ps1、Inno Setup 安装脚本）
 docs/                          文档
 ```
@@ -66,6 +67,7 @@ pwsh -File build\publish.ps1 -SelfContained            # 自包含单文件（�
 - 分层：`App → Application → Domain ← Infrastructure`，Domain 零 UI/Windows 依赖，可单测
 - 存储：`apps.json` / `settings.json` / `hidden.json` / `usage.json`，临时文件 + fsync + 原子替换，写前自动备份并按类别保留最近 10 份，损坏自动从备份恢复，schema 版本化迁移
 - 搜索：匹配维度分层（精确 > 前缀 > 子串 > 拼音全拼 > 拼音首字母 > 别名/标签），层内按收藏/使用次数/最近使用（指数衰减）排序
+- 系统组件：内置 Windows 系统组件静态目录（系统工具/控制面板/管理控制台/ms-settings 设置页/系统文件夹），ShellExecute 直达，可中文/英文/命令名/拼音搜索
 - 文件搜索（可选）：FileIndexWorker 读 NTFS USN 变更日志维护文件索引，主进程按版本号轮询热加载，支持随时关闭
 
 ## 数据与隐私

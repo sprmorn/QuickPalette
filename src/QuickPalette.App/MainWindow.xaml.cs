@@ -63,11 +63,15 @@ public partial class MainWindow : Window
     /// <summary>面板最大可见结果行数估算用（超过 MaxHeight 后靠滚动条）</summary>
     private const double MaxPanelHeight = 700;
 
+    /// <summary>系统组件结果最大条数（静态目录，通常远用不满）</summary>
+    private const int SystemToolResultLimit = 10;
+
     #endregion
 
     #region 字段
 
     private readonly SearchEngine _searchEngine;
+    private readonly SystemToolSearch _systemToolSearch;
     private readonly FileSearchManager _fileSearchManager;
     private readonly EventBus _eventBus;
     private readonly ILogger _logger;
@@ -89,6 +93,7 @@ public partial class MainWindow : Window
     private bool _loadingMore;
     private readonly Dictionary<FileKind, ImageSource> _fileIconCache = new();
     private readonly Dictionary<string, ImageSource> _appIconCache = new();
+    private readonly Dictionary<string, ImageSource> _toolIconCache = new();
     private CancellationTokenSource _searchCts = new();
 
     /// <summary>搜索版本号：只有最新一次搜索的结果才允许回填 UI（防 stale）</summary>
@@ -119,6 +124,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _searchEngine = searchEngine;
+        _systemToolSearch = new SystemToolSearch(SystemToolCatalog.Tools.Where(IsSystemToolAvailable));
         _fileSearchManager = fileSearchManager;
         _eventBus = eventBus;
         _logger = logger;
@@ -677,11 +683,21 @@ public partial class MainWindow : Window
                 () => _searchEngine.Match(query, pool).ToList(), token);
             token.ThrowIfCancellationRequested();
 
+            // 系统组件（内置静态目录：系统工具/控制面板/管理控制台/设置页/系统文件夹）
+            var toolHits = await Task.Run(
+                () => _systemToolSearch.Match(query, SystemToolResultLimit), token);
+            token.ThrowIfCancellationRequested();
+
             var displayItems = new List<ResultDisplayItem>();
             var seq = 0;
             foreach (var hit in appResults)
             {
                 displayItems.Add(CreateAppDisplayItem(hit, query, seq++));
+            }
+
+            foreach (var hit in toolHits)
+            {
+                displayItems.Add(CreateSystemToolDisplayItem(hit, query, seq++));
             }
 
             // 文件搜索（索引未就绪时静默跳过）
@@ -1397,6 +1413,12 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (item.Kind == ResultKind.SystemTool)
+            {
+                LaunchSystemTool(item, runAsAdmin);
+                return;
+            }
+
             var app = item.AppItem;
             if (app == null) return;
 
@@ -1606,6 +1628,143 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 启动系统组件：ShellExecute 执行 URI（ms-settings:）或命令行（支持 %环境变量%）。
+    /// 裸命令名优先解析到 System32 / Windows 目录，避免依赖当前目录与 PATH。
+    /// </summary>
+    private void LaunchSystemTool(ResultDisplayItem item, bool runAsAdmin)
+    {
+        var tool = item.SystemTool;
+        if (tool == null) return;
+
+        try
+        {
+            var (fileName, arguments) = SplitLaunchCommand(
+                Environment.ExpandEnvironmentVariables(tool.Launch));
+
+            if (IsBareCommand(fileName))
+            {
+                fileName = ResolveSystemCommand(fileName);
+            }
+
+            var startInfo = new ProcessStartInfo(fileName) { UseShellExecute = true };
+            if (arguments.Length > 0)
+            {
+                startInfo.Arguments = arguments;
+            }
+
+            if (runAsAdmin || Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+            {
+                startInfo.Verb = "runas";
+            }
+
+            Process.Start(startInfo);
+            _logger.Information("Launched system tool: {Name} ({Launch})", tool.Name, tool.Launch);
+            HidePalette();
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Failed to launch system tool: {Name}", tool.Name);
+            ShowMessage(
+                string.Format(UiText.T("main.launch.failed"), ex.Message),
+                UiText.T("main.title.error"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>拆分命令行：首段为可执行文件/URI（支持引号），其余为参数</summary>
+    private static (string FileName, string Arguments) SplitLaunchCommand(string command)
+    {
+        var text = command.Trim();
+        if (text.StartsWith('"'))
+        {
+            var end = text.IndexOf('"', 1);
+            if (end > 0)
+            {
+                return (text[1..end], text[(end + 1)..].Trim());
+            }
+        }
+
+        var space = text.IndexOf(' ');
+        return space < 0
+            ? (text, string.Empty)
+            : (text[..space], text[(space + 1)..].Trim());
+    }
+
+    /// <summary>是否为不带路径的裸命令名（如 devmgmt.msc / regedit；URI 与带路径的不算）</summary>
+    private static bool IsBareCommand(string fileName)
+        => fileName.Length > 0
+           && !fileName.Contains('\\')
+           && !fileName.Contains('/')
+           && !fileName.Contains(':');
+
+    /// <summary>裸命令名解析：System32 → Windows 目录 → PATH；无扩展名时依次试 .exe/.msc/.cpl</summary>
+    private static string ResolveSystemCommand(string name)
+    {
+        var candidates = name.Contains('.')
+            ? new[] { name }
+            : new[] { name + ".exe", name + ".msc", name + ".cpl", name };
+
+        var dirs = new List<string>
+        {
+            Environment.SystemDirectory,
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows)
+        };
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        dirs.AddRange(pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries));
+
+        foreach (var dir in dirs)
+        {
+            foreach (var candidate in candidates)
+            {
+                string path;
+                try
+                {
+                    path = Path.Combine(dir.Trim(), candidate);
+                }
+                catch (ArgumentException)
+                {
+                    continue; // PATH 中的非法字符段
+                }
+
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
+        }
+
+        return name;
+    }
+
+    /// <summary>
+    /// 系统组件在本机是否可用：URI / 控制面板壳命令恒可用；
+    /// 首段指向具体文件（exe/msc/cpl）的条目要求文件存在（如家庭版无 gpedit.msc 则不收录）。
+    /// </summary>
+    private static bool IsSystemToolAvailable(SystemTool tool)
+    {
+        try
+        {
+            if (tool.Launch.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var (fileName, _) = SplitLaunchCommand(Environment.ExpandEnvironmentVariables(tool.Launch));
+            var resolved = IsBareCommand(fileName) ? ResolveSystemCommand(fileName) : fileName;
+
+            return !resolved.EndsWith(".msc", StringComparison.OrdinalIgnoreCase)
+                   && !resolved.EndsWith(".cpl", StringComparison.OrdinalIgnoreCase)
+                   && !resolved.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                   || File.Exists(resolved);
+        }
+        catch
+        {
+            return true; // 检查失败不挡收录，交给启动时的错误提示
+        }
+    }
+
     #endregion
 
     #region 右键菜单
@@ -1651,6 +1810,22 @@ public partial class MainWindow : Window
             var runItem = new MenuItem { Header = UiText.T("main.menu.launch") };
             runItem.Click += (_, _) => LaunchItem(item);
             contextMenu.Items.Add(runItem);
+        }
+        else if (item.Kind == ResultKind.SystemTool)
+        {
+            var launchItem = new MenuItem { Header = UiText.T("main.menu.launch") };
+            launchItem.Click += (_, _) => LaunchItem(item);
+            contextMenu.Items.Add(launchItem);
+
+            var adminItem = new MenuItem { Header = UiText.T("main.menu.launchAdmin") };
+            adminItem.Click += (_, _) => LaunchItem(item, runAsAdmin: true);
+            contextMenu.Items.Add(adminItem);
+
+            contextMenu.Items.Add(new Separator());
+
+            var copyCommandItem = new MenuItem { Header = UiText.T("main.menu.copyPath") };
+            copyCommandItem.Click += (_, _) => CopySelectedPath();
+            contextMenu.Items.Add(copyCommandItem);
         }
         else
         {
@@ -1839,11 +2014,32 @@ public partial class MainWindow : Window
             SecondaryText = string.IsNullOrEmpty(item.Path) ? item.Aumid : item.Path,
             Icon = GetAppIcon(item),
             NameSegments = BuildSegments(item.Name, query),
-            LaunchHint = GetLaunchHint(hit),
+            LaunchHint = GetLaunchHint(hit.Dimension),
             IsFavorite = item.Favorite,
             TypeLabel = UiText.T("main.tag.app"),
             GroupName = UiText.T("main.group.app"),
             GroupRank = 0,
+            Sequence = sequence
+        };
+    }
+
+    private ResultDisplayItem CreateSystemToolDisplayItem(SystemToolHit hit, string query, int sequence)
+    {
+        var tool = hit.Tool;
+        return new ResultDisplayItem
+        {
+            Kind = ResultKind.SystemTool,
+            SystemTool = tool,
+            Id = tool.Id,
+            Name = tool.Name,
+            Path = tool.Launch,
+            SecondaryText = string.IsNullOrEmpty(tool.NameEn) ? tool.Launch : $"{tool.NameEn}  ·  {tool.Launch}",
+            Icon = GetSystemToolIcon(tool),
+            NameSegments = BuildSegments(tool.Name, query),
+            LaunchHint = GetLaunchHint(hit.Dimension),
+            TypeLabel = GetSystemToolCategoryLabel(tool.Category),
+            GroupName = UiText.T("main.group.system"),
+            GroupRank = 1,
             Sequence = sequence
         };
     }
@@ -1866,7 +2062,7 @@ public partial class MainWindow : Window
             TypeLabel = GetFileTypeLabel(kind),
             ModifiedText = entry.Modified.ToLocalTime().ToString("MM-dd HH:mm", CultureInfo.InvariantCulture),
             GroupName = UiText.T("main.group.file"),
-            GroupRank = 1,
+            GroupRank = 2,
             Sequence = sequence
         };
     }
@@ -1886,7 +2082,7 @@ public partial class MainWindow : Window
             LaunchHint = UiText.T("main.match.command"),
             TypeLabel = UiText.T("main.group.command"),
             GroupName = UiText.T("main.group.command"),
-            GroupRank = 2,
+            GroupRank = 3,
             Sequence = sequence
         };
     }
@@ -1963,6 +2159,72 @@ public partial class MainWindow : Window
 
         _appIconCache[item.Id] = icon;
         return icon;
+    }
+
+    /// <summary>系统组件图标：从图标来源文件（exe/msc/cpl）提取并按 Id 缓存</summary>
+    private ImageSource GetSystemToolIcon(SystemTool tool)
+    {
+        var cacheKey = "sys:" + tool.Id;
+        if (_toolIconCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        ImageSource icon;
+        try
+        {
+            var iconFile = ResolveSystemToolIconFile(tool);
+            var iconPath = iconFile == null ? null : _iconService.GetIconPath(iconFile, cacheKey);
+            if (!string.IsNullOrEmpty(iconPath) && File.Exists(iconPath))
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(iconPath);
+                bitmap.EndInit();
+                bitmap.Freeze();
+                icon = bitmap;
+            }
+            else
+            {
+                icon = _defaultIcon ?? new BitmapImage();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Failed to load system tool icon: {Id}", tool.Id);
+            icon = _defaultIcon ?? new BitmapImage();
+        }
+
+        _toolIconCache[cacheKey] = icon;
+        return icon;
+    }
+
+    /// <summary>解析系统组件的图标来源文件（IconFile 显式优先，否则按启动命令推导）</summary>
+    private static string? ResolveSystemToolIconFile(SystemTool tool)
+    {
+        var spec = string.IsNullOrEmpty(tool.IconFile) ? InferIconFile(tool) : tool.IconFile;
+        if (string.IsNullOrWhiteSpace(spec)) return null;
+
+        var expanded = Environment.ExpandEnvironmentVariables(spec);
+        if (IsBareCommand(expanded))
+        {
+            expanded = ResolveSystemCommand(expanded);
+        }
+
+        return File.Exists(expanded) ? expanded : null;
+    }
+
+    /// <summary>按启动命令推断图标来源：设置页取 SystemSettings.exe，其余取命令首段</summary>
+    private static string InferIconFile(SystemTool tool)
+    {
+        if (tool.Launch.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase))
+        {
+            return @"%SystemRoot%\ImmersiveControlPanel\SystemSettings.exe";
+        }
+
+        var (fileName, _) = SplitLaunchCommand(tool.Launch);
+        return fileName;
     }
 
     /// <summary>文件类型图标：按类型着色的圆形 + 图标字符（同类型缓存）</summary>
@@ -2064,7 +2326,7 @@ public partial class MainWindow : Window
         _ => UiText.T("main.tag.file")
     };
 
-    private static string GetLaunchHint(SearchHit hit) => hit.Dimension switch
+    private static string GetLaunchHint(MatchDimension dimension) => dimension switch
     {
         MatchDimension.NameExact => UiText.T("main.match.exact"),
         MatchDimension.NamePrefix => UiText.T("main.match.prefix"),
@@ -2072,6 +2334,16 @@ public partial class MainWindow : Window
         MatchDimension.PinyinInitials => UiText.T("main.match.initials"),
         MatchDimension.AliasOrTag => UiText.T("main.match.alias"),
         _ => string.Empty
+    };
+
+    /// <summary>系统组件分类标签</summary>
+    private static string GetSystemToolCategoryLabel(SystemToolCategory category) => category switch
+    {
+        SystemToolCategory.ControlPanel => UiText.T("main.syscat.control"),
+        SystemToolCategory.MscConsole => UiText.T("main.syscat.msc"),
+        SystemToolCategory.Settings => UiText.T("main.syscat.settings"),
+        SystemToolCategory.ShellFolder => UiText.T("main.syscat.folder"),
+        _ => UiText.T("main.syscat.tool")
     };
 
     #endregion
@@ -2100,6 +2372,8 @@ public enum ResultKind
 {
     /// <summary>应用</summary>
     App,
+    /// <summary>Windows 系统组件（系统工具/控制面板/管理控制台/设置页/系统文件夹）</summary>
+    SystemTool,
     /// <summary>本地文件/文件夹</summary>
     File,
     /// <summary>命令模式命令</summary>
@@ -2114,6 +2388,7 @@ public class ResultDisplayItem
 {
     public ResultKind Kind { get; set; } = ResultKind.App;
     public AppItem? AppItem { get; set; }
+    public SystemTool? SystemTool { get; set; }
     public FileEntry? FileEntry { get; set; }
     public CommandItem? Command { get; set; }
     public string Id { get; set; } = string.Empty;
@@ -2143,7 +2418,7 @@ public class ResultDisplayItem
     /// <summary>分组标题文本（应用 / 文件 / 命令）</summary>
     public string GroupName { get; set; } = string.Empty;
 
-    /// <summary>分组排序权重（应用=0 文件=1 命令=2），保证分组顺序稳定</summary>
+    /// <summary>分组排序权重（应用=0 系统组件=1 文件=2 命令=3），保证分组顺序稳定</summary>
     public int GroupRank { get; set; }
 
     /// <summary>组内顺序号（稳定排序用）</summary>

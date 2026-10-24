@@ -126,7 +126,7 @@
                     <!-- 搜索提示文字 -->
                     <TextBlock x:Name="SearchWatermark"
                                Grid.Column="1"
-                               Text="搜索应用…"
+                               Text="搜索应用、文件或系统组件…"
                                Foreground="{DynamicResource TextHint}"
                                FontSize="22"
                                VerticalAlignment="Center"

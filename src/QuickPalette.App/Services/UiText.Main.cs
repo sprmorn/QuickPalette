@@ -16,7 +16,7 @@ public static partial class UiText
         AddTexts(new Dictionary<string, string>
         {
             // ---- 主面板：搜索区 / 空态 ----
-            ["main.search.watermark"] = "搜索应用…",
+            ["main.search.watermark"] = "搜索应用、文件或系统组件…",
             ["main.empty.guide"] = "试试 >help 查看命令 / 拖入 exe 添加应用",
             ["main.empty.noMatch"] = "无匹配结果",
             ["main.empty.noFiles"] = "文件索引未就绪，仅显示应用结果",
@@ -28,9 +28,15 @@ public static partial class UiText
 
             // ---- 主面板：分组标题与类型标签 ----
             ["main.group.app"] = "应用",
+            ["main.group.system"] = "系统组件",
             ["main.group.file"] = "文件",
             ["main.group.command"] = "命令",
             ["main.tag.app"] = "应用",
+            ["main.syscat.tool"] = "系统工具",
+            ["main.syscat.control"] = "控制面板",
+            ["main.syscat.msc"] = "管理控制台",
+            ["main.syscat.settings"] = "系统设置",
+            ["main.syscat.folder"] = "系统文件夹",
             ["main.tag.folder"] = "文件夹",
             ["main.tag.image"] = "图片",
             ["main.tag.audio"] = "音频",
@@ -140,7 +146,7 @@ public static partial class UiText
         }, new Dictionary<string, string>
         {
             // ---- Main panel: search / empty states ----
-            ["main.search.watermark"] = "Search apps…",
+            ["main.search.watermark"] = "Search apps, files, system tools…",
             ["main.empty.guide"] = "Try >help for commands / drop an .exe to add",
             ["main.empty.noMatch"] = "No matches",
             ["main.empty.noFiles"] = "File index not ready, showing apps only",
@@ -152,9 +158,15 @@ public static partial class UiText
 
             // ---- Main panel: group headers & type tags ----
             ["main.group.app"] = "Apps",
+            ["main.group.system"] = "System Tools",
             ["main.group.file"] = "Files",
             ["main.group.command"] = "Commands",
             ["main.tag.app"] = "App",
+            ["main.syscat.tool"] = "Tool",
+            ["main.syscat.control"] = "Control Panel",
+            ["main.syscat.msc"] = "Console",
+            ["main.syscat.settings"] = "Settings",
+            ["main.syscat.folder"] = "System Folder",
             ["main.tag.folder"] = "Folder",
             ["main.tag.image"] = "Image",
             ["main.tag.audio"] = "Audio",
