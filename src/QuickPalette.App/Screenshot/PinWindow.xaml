@@ -7,7 +7,6 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
-        SizeToContent="WidthAndHeight"
         ResizeMode="NoResize"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         MouseWheel="Window_MouseWheel"
@@ -16,6 +15,6 @@
     <Border BorderBrush="#88000000"
             BorderThickness="1"
             CornerRadius="2">
-        <Image x:Name="PinImage" Stretch="None" />
+        <Image x:Name="PinImage" Stretch="Fill" />
     </Border>
 </Window>

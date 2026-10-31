@@ -695,17 +695,22 @@ public partial class OverlayWindow : Window
         };
 
         _drawingStart = pos; // 按下瞬间固定起点
-        CaptureMouse(); // 拖出窗口仍跟手
-
-        var local = ToDoc(pos);
-        if (kind is AnnotationKind.Brush or AnnotationKind.Highlight)
+        if (kind == AnnotationKind.Arrow)
         {
-            _drawing.Points.Add(local);
+            // 箭头保留拖拽方向：Points[0]=起点、Points[1]=终点（外接框只用于命中/定位）
+            _drawing.Points.Add(ToDoc(pos));
+        }
+        else if (kind is AnnotationKind.Brush or AnnotationKind.Highlight)
+        {
+            _drawing.Points.Add(ToDoc(pos));
         }
         else
         {
-            _drawing.Frame = new System.Drawing.RectangleF(local.X, local.Y, 0, 0);
+            _drawing.Frame = new System.Drawing.RectangleF(
+                (float)(pos.X - _selection.X), (float)(pos.Y - _selection.Y), 0, 0);
         }
+
+        CaptureMouse(); // 拖出窗口仍跟手
 
         _doc.Add(_drawing);
         SyncCanvas();
@@ -726,6 +731,17 @@ public partial class OverlayWindow : Window
         if (drawing.Kind is AnnotationKind.Brush or AnnotationKind.Highlight)
         {
             if (drawing.Points.Count < 2)
+            {
+                _doc.Remove(drawing.Id);
+                SyncCanvas();
+                return;
+            }
+        }
+        else if (drawing.Kind == AnnotationKind.Arrow)
+        {
+            // 箭头按起止距离判退化（水平/垂直箭头是合法图形，不能用外接框判）
+            var valid = drawing.Points.Count >= 2 && Distance(drawing.Points[0], drawing.Points[1]) >= 2;
+            if (!valid)
             {
                 _doc.Remove(drawing.Id);
                 SyncCanvas();
@@ -769,6 +785,19 @@ public partial class OverlayWindow : Window
                 Math.Min(sx, local.X), Math.Min(sy, local.Y),
                 Math.Max(sx, local.X), Math.Max(sy, local.Y));
             _drawing.Frame = frame;
+
+            if (_drawing.Kind == AnnotationKind.Arrow)
+            {
+                // 箭头终点跟随鼠标（方向锚点）
+                if (_drawing.Points.Count >= 2)
+                {
+                    _drawing.Points[1] = local;
+                }
+                else
+                {
+                    _drawing.Points.Add(local);
+                }
+            }
         }
 
         SyncCanvas();
@@ -810,6 +839,10 @@ public partial class OverlayWindow : Window
         SyncCanvas();
         RefreshHistoryState();
     }
+
+    /// <summary>文档坐标两点距离（箭头退化判定用）</summary>
+    private static double Distance(System.Drawing.PointF a, System.Drawing.PointF b)
+        => Math.Sqrt((a.X - b.X) * (double)(a.X - b.X) + (a.Y - b.Y) * (double)(a.Y - b.Y));
 
     private System.Drawing.PointF ToDoc(Point windowPos)
         => new((float)(windowPos.X - _selection.X), (float)(windowPos.Y - _selection.Y));
@@ -923,9 +956,20 @@ public partial class OverlayWindow : Window
 
     private static Geometry BuildArrowGeometry(AnnotationObject annotation)
     {
-        var f = annotation.Frame;
-        var start = new Point(f.Left, f.Top);
-        var end = new Point(f.Right, f.Bottom);
+        // 方向锚点优先（Points[0]=起点 → Points[1]=终点）；无锚点时退回外接框对角
+        Point start, end;
+        if (annotation.Points.Count >= 2)
+        {
+            start = new Point(annotation.Points[0].X, annotation.Points[0].Y);
+            end = new Point(annotation.Points[1].X, annotation.Points[1].Y);
+        }
+        else
+        {
+            var f = annotation.Frame;
+            start = new Point(f.Left, f.Top);
+            end = new Point(f.Right, f.Bottom);
+        }
+
         var direction = end - start;
         if (direction.Length < 0.01)
         {
@@ -933,7 +977,8 @@ public partial class OverlayWindow : Window
         }
 
         direction.Normalize();
-        var headLength = Math.Max(8, Math.Min(f.Width, f.Height) * 0.35 + annotation.Style.StrokeWidth * 2);
+        // 箭头头部长度随箭头长度收敛（10~40 DIP），并随描边加粗
+        var headLength = Math.Clamp(direction.Length * 0.25, 10, 40) + annotation.Style.StrokeWidth * 2;
         var basePoint = end - direction * headLength;
         var normal = new Vector(-direction.Y, direction.X);
 
