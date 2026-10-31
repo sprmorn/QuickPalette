@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using QuickPalette.Screenshot.Capture;
 using QuickPalette.Screenshot.Detect;
 using QuickPalette.Screenshot.Model;
@@ -104,9 +105,62 @@ public partial class OverlayWindow : Window
 
         SourceInitialized += (_, _) => PositionPixelPerfect();
         Loaded += (_, _) => Keyboard.Focus(this);
+        ContentRendered += (_, _) => GrabForegroundAndFocus();
+
+        // 覆盖层缓存复用：每次重新可见都要重新激活 + 拿键盘焦点
+        //（Loaded 只触发一次；且仅 Keyboard.Focus 不够——窗口不在前台时键盘输入到不了，
+        //  表现为"未框选时 Esc/快捷键没反应，点了鼠标之后才正常"）
+        IsVisibleChanged += (_, args) =>
+        {
+            if (args.NewValue is true)
+            {
+                Dispatcher.BeginInvoke(GrabForegroundAndFocus, DispatcherPriority.Input);
+            }
+        };
 
         CreateHandles();
         WireToolbar();
+    }
+
+    /// <summary>抢前台 + 键盘焦点（唤起/复用唤起都要做，否则键盘输入到不了覆盖层）</summary>
+    private void GrabForegroundAndFocus()
+    {
+        try
+        {
+            Activate();
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                // Windows 前台锁：直接 SetForegroundWindow 常被拒绝（键盘输入仍去旧窗口）。
+                // 用 AttachThreadInput 附着前台线程后夺取，而不是 Alt 解锁技巧——
+                // 注入 Alt 会激活菜单模式、吞掉紧接着的第一个按键（Esc/快捷键"按第二次才有反应"）
+                var foreground = GetForegroundWindow();
+                var foregroundThread = GetWindowThreadProcessId(foreground, IntPtr.Zero);
+                var currentThread = GetCurrentThreadId();
+                var attached = foregroundThread != 0 && AttachThreadInput(currentThread, foregroundThread, true);
+                try
+                {
+                    SetForegroundWindow(hwnd);
+                    BringWindowToTop(hwnd);
+                }
+                finally
+                {
+                    if (attached)
+                    {
+                        AttachThreadInput(currentThread, foregroundThread, false);
+                    }
+                }
+
+                _logger.Information("Overlay grab-foreground: hwnd={Hwnd} attached={Attached}", hwnd, attached);
+            }
+        }
+        catch (Exception ex)
+        {
+            // 激活失败不阻塞（仍可通过鼠标点击激活）
+            _logger.Warning(ex, "Overlay grab-foreground failed");
+        }
+
+        Keyboard.Focus(this);
     }
 
     /// <summary>创建 8 个选区调整手柄（四角 + 四边中点），叠在定位层最上方</summary>
@@ -1319,9 +1373,13 @@ public partial class OverlayWindow : Window
             return; // 文字输入中把键盘让给输入框
         }
 
+        // 抢前台的 Alt 解锁会把紧接着的按键标成 Key.System（Alt 组合）——
+        // 还原真实键，否则第一个 Esc/工具快捷键会被误判丢弃（"按第二次才有反应"）
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+
         if (Keyboard.Modifiers == ModifierKeys.Control)
         {
-            switch (e.Key)
+            switch (key)
             {
                 case Key.Z: Undo(); e.Handled = true; return;
                 case Key.Y: Redo(); e.Handled = true; return;
@@ -1341,7 +1399,7 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        switch (e.Key)
+        switch (key)
         {
             case Key.Escape:
                 Exit();
@@ -1423,4 +1481,25 @@ public partial class OverlayWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, int hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr processId);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
 }

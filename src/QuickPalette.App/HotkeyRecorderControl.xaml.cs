@@ -38,12 +38,15 @@ public partial class HotkeyRecorderControl : UserControl
     private string _registeredHotkey = new Settings().Hotkey;
     private bool _isRecording;
 
+    /// <summary>"恢复默认"使用的目标默认值（主热键/截图热键各自设置）</summary>
+    private string _defaultHotkey = new Settings().Hotkey;
+
     public HotkeyRecorderControl()
     {
         InitializeComponent();
 
         RecordButton.Content = UiText.T("Hotkey.Record");
-        DefaultButton.Content = $"{UiText.T("Hotkey.RestoreDefault")}（{new Settings().Hotkey}）";
+        RefreshDefaultButton();
 
         Loaded += (s, e) => RefreshDisplay();
         LostKeyboardFocus += (s, e) =>
@@ -58,6 +61,16 @@ public partial class HotkeyRecorderControl : UserControl
             }
         };
     }
+
+    /// <summary>设置"恢复默认"的目标热键并刷新按钮文案（不同用途的录制控件各自设置）</summary>
+    public void SetDefaultHotkey(string hotkey)
+    {
+        _defaultHotkey = string.IsNullOrWhiteSpace(hotkey) ? new Settings().Hotkey : hotkey.Trim();
+        RefreshDefaultButton();
+    }
+
+    private void RefreshDefaultButton()
+        => DefaultButton.Content = $"{UiText.T("Hotkey.RestoreDefault")}（{_defaultHotkey}）";
 
     /// <summary>判断焦点目标是否位于本控件内部（含控件自身）</summary>
     private bool IsInsideControl(object? element)
@@ -158,7 +171,7 @@ public partial class HotkeyRecorderControl : UserControl
             CancelRecording();
         }
 
-        var defaultHotkey = new Settings().Hotkey;
+        var defaultHotkey = _defaultHotkey;
         _hotkey = defaultHotkey;
         RefreshDisplay();
         SetStatus(string.Empty, false);

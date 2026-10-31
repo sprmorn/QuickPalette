@@ -380,9 +380,8 @@
                                                FontSize="14"
                                                FontWeight="Medium"
                                                Margin="0,0,0,10"/>
-                                    <TextBox x:Name="ScreenshotHotkeyBox"
-                                             Style="{StaticResource InputStyle}"
-                                             Margin="0,0,0,6"/>
+                                    <local:HotkeyRecorderControl x:Name="ScreenshotHotkeyRecorder"
+                                                                 Margin="0,0,0,6"/>
                                     <TextBlock x:Name="ScreenshotHotkeyHint"
                                                Foreground="{DynamicResource TextDim2}"
                                                FontSize="11"

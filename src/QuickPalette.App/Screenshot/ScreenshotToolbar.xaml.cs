@@ -33,6 +33,10 @@ public partial class ScreenshotToolbar : UserControl
     /// <summary>当前滑条语义：true=字号（文字工具），false=粗细</summary>
     private bool _fontSizeMode;
 
+    /// <summary>两套记忆值：切换工具不丢已选的粗细/字号</summary>
+    private double _lastWidth = 3;
+    private double _lastFont = 24;
+
     public ScreenshotToolbar()
     {
         // 必须在 InitializeComponent 前置位：XAML 解析中 WidthSlider.Value=3 会触发 ValueChanged，
@@ -89,25 +93,46 @@ public partial class ScreenshotToolbar : UserControl
             return;
         }
 
+        // 当前值存回旧模式（注意：必须先存值再改范围——先抬 Minimum 会把值强 coerced 抬走）
+        if (_fontSizeMode)
+        {
+            _lastFont = WidthSlider.Value;
+        }
+        else
+        {
+            _lastWidth = WidthSlider.Value;
+        }
+
         _fontSizeMode = fontSizeMode;
+
         _loading = true;
         if (fontSizeMode)
         {
             WidthLabel.Text = "字号";
             WidthSlider.Minimum = 12;
             WidthSlider.Maximum = 72;
-            WidthSlider.Value = Math.Clamp(WidthSlider.Value * 8, 12, 72);
+            WidthSlider.Value = Math.Clamp(_lastFont, 12, 72);
         }
         else
         {
             WidthLabel.Text = "粗细";
             WidthSlider.Minimum = 1;
             WidthSlider.Maximum = 24;
-            WidthSlider.Value = Math.Clamp(WidthSlider.Value / 8, 1, 24);
+            WidthSlider.Value = Math.Clamp(_lastWidth, 1, 24);
         }
 
         WidthText.Text = ((int)WidthSlider.Value).ToString();
         _loading = false;
+
+        // 切换后立即同步语义值：保证显示值与实际生效值一致
+        if (fontSizeMode)
+        {
+            FontSizeSelected?.Invoke(WidthSlider.Value);
+        }
+        else
+        {
+            WidthSelected?.Invoke(WidthSlider.Value);
+        }
     }
 
     /// <summary>同步撤销/重做按钮可用态</summary>

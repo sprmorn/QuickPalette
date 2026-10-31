@@ -81,6 +81,14 @@ public partial class SettingsWindow : Window
             _logger.Information("Hotkey recorded: {Hotkey}", hotkey);
         };
 
+        // 截图热键录制（与主热键同一控件/交互；默认值 Alt+D）
+        ScreenshotHotkeyRecorder.SetDefaultHotkey(new Settings().ScreenshotHotkey);
+        ScreenshotHotkeyRecorder.HotkeyChanged += (s, hotkey) =>
+        {
+            _settings.ScreenshotHotkey = hotkey;
+            _logger.Information("Screenshot hotkey recorded: {Hotkey}", hotkey);
+        };
+
         // 窗口关闭：停表（修 DispatcherTimer 泄漏）+ 回滚未保存的注册/主题
         Closed += (s, e) => OnWindowClosed();
 
@@ -217,7 +225,8 @@ public partial class SettingsWindow : Window
             HotkeyRecorder.RegisteredHotkey = _originalHotkey;
 
             // 截图
-            ScreenshotHotkeyBox.Text = _settings.ScreenshotHotkey;
+            ScreenshotHotkeyRecorder.Hotkey = _settings.ScreenshotHotkey;
+            ScreenshotHotkeyRecorder.RegisteredHotkey = _settings.ScreenshotHotkey;
             ScreenshotSmartCheckBox.IsChecked = _settings.ScreenshotSmartSelect;
             ScreenshotSaveDirBox.Text = _settings.ScreenshotSaveDir;
             ScreenshotTemplateBox.Text = _settings.ScreenshotFileNameTemplate;
@@ -861,9 +870,9 @@ public partial class SettingsWindow : Window
             _settings.Theme = GetSelectedTheme();
 
             // 截图
-            _settings.ScreenshotHotkey = string.IsNullOrWhiteSpace(ScreenshotHotkeyBox.Text)
+            _settings.ScreenshotHotkey = string.IsNullOrWhiteSpace(ScreenshotHotkeyRecorder.Hotkey)
                 ? "Alt+D"
-                : ScreenshotHotkeyBox.Text.Trim();
+                : ScreenshotHotkeyRecorder.Hotkey.Trim();
             _settings.ScreenshotSmartSelect = ScreenshotSmartCheckBox.IsChecked == true;
             _settings.ScreenshotSaveDir = ScreenshotSaveDirBox.Text.Trim();
             _settings.ScreenshotFileNameTemplate = string.IsNullOrWhiteSpace(ScreenshotTemplateBox.Text)
