@@ -82,7 +82,7 @@
                 <Border Width="1" Background="#44FFFFFF" Margin="6,4"/>
 
                 <Button Style="{StaticResource ActionButton}" Content="⧉" ToolTip="复制（Ctrl+C）" Click="Copy_Click"/>
-                <Button Style="{StaticResource ActionButton}" Content="💾" ToolTip="保存（Ctrl+S）" Click="Save_Click"/>
+                <Button Style="{StaticResource ActionButton}" Content="💾" ToolTip="保存并复制（Ctrl+S）" Click="Save_Click"/>
                 <Button Style="{StaticResource ActionButton}" Content="📌" ToolTip="钉图（Ctrl+D）" Click="Pin_Click"/>
                 <Button Style="{StaticResource ActionButton}" Content="✕" ToolTip="退出（Esc）" Click="Exit_Click"/>
             </StackPanel>

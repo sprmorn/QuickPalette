@@ -708,7 +708,8 @@ public partial class MainWindow : Window
             }
 
             // 网络搜索指令行（"bd 关键词" / "dy 关键词" / "bl 关键词" / "ds 关键词"），置顶显示
-            var web = ParseWebSearchQuery(query);
+            //（设置·通用的"启用网络搜索"为总开关）
+            var web = _host.IsDeepSeekSearchEnabled() ? ParseWebSearchQuery(query) : null;
             if (web != null)
             {
                 displayItems.Insert(0, CreateWebSearchDisplayItem(web.Value.Provider, web.Value.Keyword, 0));
@@ -1187,12 +1188,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 指令 + Tab 进入网络搜索模式：ds=DeepSeek（可在设置中关闭）/ bd=百度 / dy=抖音 / bl=哔哩哔哩
+        // 指令 + Tab 进入网络搜索模式：ds=DeepSeek / bd=百度 / dy=抖音 / bl=哔哩哔哩
+        // （设置·通用的"启用网络搜索"为总开关，管全部四个指令）
         var code = SearchBox.Text.Trim().ToLowerInvariant();
         var provider = Array.Find(WebSearchProviders, p => p.Code == code);
         if (provider != null
             && !IsCommandMode
-            && (provider.Code != "ds" || _host.IsDeepSeekSearchEnabled()))
+            && _host.IsDeepSeekSearchEnabled())
         {
             EnterWebSearchMode(provider);
             e.Handled = true;

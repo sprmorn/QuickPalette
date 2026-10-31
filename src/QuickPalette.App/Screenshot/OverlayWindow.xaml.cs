@@ -247,7 +247,7 @@ public partial class OverlayWindow : Window
         Toolbar.UndoRequested += Undo;
         Toolbar.RedoRequested += Redo;
         Toolbar.CopyRequested += () => Finish(emit: Copy);
-        Toolbar.SaveRequested += () => Finish(emit: Save);
+        Toolbar.SaveRequested += () => Finish(emit: SaveAndCopy);
         Toolbar.PinRequested += () => Finish(emit: Pin);
         Toolbar.ExitRequested += Exit;
         Toolbar.ColorSelected += c =>
@@ -358,6 +358,13 @@ public partial class OverlayWindow : Window
         {
             _logger.Error(ex, "Screenshot save failed");
         }
+    }
+
+    /// <summary>保存并复制（Ctrl+S / 保存按钮）：写文件的同时进剪贴板</summary>
+    private void SaveAndCopy(BitmapSource image)
+    {
+        Save(image);
+        Copy(image);
     }
 
     private void Pin(BitmapSource image)
@@ -1384,7 +1391,7 @@ public partial class OverlayWindow : Window
                 case Key.Z: Undo(); e.Handled = true; return;
                 case Key.Y: Redo(); e.Handled = true; return;
                 case Key.C: Finish(Copy); e.Handled = true; return;
-                case Key.S: Finish(Save); e.Handled = true; return;
+                case Key.S: Finish(SaveAndCopy); e.Handled = true; return;
                 case Key.D: Finish(Pin); e.Handled = true; return;
                 case Key.A:
                     if (!_hasSelection)

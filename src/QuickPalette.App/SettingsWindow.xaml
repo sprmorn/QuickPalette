@@ -598,31 +598,31 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- DeepSeek 网络搜索 -->
+                            <!-- 网络搜索 -->
                             <Border Background="{DynamicResource BgCard}"
                                     CornerRadius="8"
                                     Padding="15"
                                     Margin="0,0,0,15">
                                 <StackPanel>
                                     <TextBlock x:Name="DeepSeekTitle"
-                                               Text="DeepSeek 网络搜索"
+                                               Text="网络搜索"
                                                Foreground="{DynamicResource TextPrimary}"
                                                FontSize="14"
                                                FontWeight="Medium"
                                                Margin="0,0,0,5"/>
 
                                     <TextBlock x:Name="DeepSeekDesc"
-                                               Text="在搜索框输入 DS 后按 Tab 进入 DeepSeek 搜索模式，输入内容回车即打开浏览器自动搜索。"
+                                               Text="在搜索框输入「指令 关键词」回车直接搜索，或输入指令后按 Tab 进入搜索模式。指令：bd 百度 · dy 抖音 · bl 哔哩哔哩 · ds DeepSeek。"
                                                Foreground="{DynamicResource TextDim2}"
                                                FontSize="12"
                                                TextWrapping="Wrap"
                                                Margin="0,0,0,10"/>
 
                                     <CheckBox x:Name="DeepSeekCheckBox"
-                                              Content="启用 DS 快捷搜索（DS + Tab）"/>
+                                              Content="启用网络搜索（bd / dy / bl / ds）"/>
 
                                     <TextBlock x:Name="DeepSeekHint"
-                                               Text="提示：使用 DeepSeek 网络搜索需要登录 DeepSeek 账号。"
+                                               Text="提示：DeepSeek 搜索需登录 DeepSeek 账号；其余指令直接打开对应网站搜索。"
                                                Foreground="{DynamicResource AccentTextBrush}"
                                                FontSize="12"
                                                TextWrapping="Wrap"
