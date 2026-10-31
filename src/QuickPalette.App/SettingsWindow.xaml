@@ -246,6 +246,13 @@
                                     Click="AddApp_Click"
                                     DockPanel.Dock="Right"/>
 
+                            <Button x:Name="ImportAppsButton"
+                                    Content="批量导入"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="ImportApps_Click"
+                                    DockPanel.Dock="Right"
+                                    Margin="0,0,8,0"/>
+
                             <TextBox x:Name="SearchBox"
                                      Style="{StaticResource InputStyle}"
                                      TextChanged="SearchBox_TextChanged"

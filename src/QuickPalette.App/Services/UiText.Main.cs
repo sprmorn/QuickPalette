@@ -71,6 +71,7 @@ public static partial class UiText
             // ---- 主面板：命令模式 ----
             ["main.cmd.settings"] = "打开设置",
             ["main.cmd.capture"] = "捕获前台窗口入库",
+            ["main.cmd.import"] = "批量导入应用（开始菜单 / 注册表 / UWP）",
             ["main.cmd.refresh"] = "重新扫描 / 刷新索引",
             ["main.cmd.theme"] = "切换主题：>theme dark|light|system",
             ["main.cmd.backup"] = "立即备份数据",
@@ -81,6 +82,8 @@ public static partial class UiText
             ["main.ds.rowSecondary"] = "打开浏览器并自动搜索（需已登录 DeepSeek 账号）",
             ["main.ds.launchHint"] = "搜索",
             ["main.ds.group"] = "网络搜索",
+            ["main.web.row"] = "用 {0} 搜索「{1}」",
+            ["main.web.hint"] = "{0} 搜索模式 · 回车打开浏览器搜索 · Esc 退出",
             ["main.ds.empty"] = "输入要搜索的内容，回车打开 DeepSeek",
             ["main.command.unknown"] = "未知命令，输入 >help 查看全部命令",
             ["main.command.helpTitle"] = "命令帮助",
@@ -201,6 +204,7 @@ public static partial class UiText
             // ---- Main panel: command mode ----
             ["main.cmd.settings"] = "Open settings",
             ["main.cmd.capture"] = "Capture foreground window into launcher",
+            ["main.cmd.import"] = "Batch import apps (Start Menu / Registry / UWP)",
             ["main.cmd.refresh"] = "Rescan / refresh index",
             ["main.cmd.theme"] = "Switch theme: >theme dark|light|system",
             ["main.cmd.backup"] = "Back up data now",
@@ -211,6 +215,8 @@ public static partial class UiText
             ["main.ds.rowSecondary"] = "Open the browser and search automatically (DeepSeek account sign-in required)",
             ["main.ds.launchHint"] = "Search",
             ["main.ds.group"] = "Web search",
+            ["main.web.row"] = "Search \"{1}\" on {0}",
+            ["main.web.hint"] = "{0} search mode · Enter to open browser · Esc to exit",
             ["main.ds.empty"] = "Type what to search, press Enter to open DeepSeek",
             ["main.command.unknown"] = "Unknown command, type >help for the command list",
             ["main.command.helpTitle"] = "Command Help",

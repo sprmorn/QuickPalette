@@ -11,6 +11,9 @@ public sealed class PaletteHostActions
     /// <summary>打开设置窗口（设置保存后由 App 负责重新应用主题/MaxResults 等）</summary>
     public required Action OpenSettings { get; init; }
 
+    /// <summary>打开"批量导入"向导（扫描开始菜单/注册表/UWP，勾选入库后自动刷新）</summary>
+    public required Action OpenImportWizard { get; init; }
+
     /// <summary>打开"添加应用"窗口（可预填；保存入库与刷新由 App 负责）</summary>
     public required Action<AppItem?> ShowAddApp { get; init; }
 

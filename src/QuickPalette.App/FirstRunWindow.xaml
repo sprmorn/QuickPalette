@@ -248,7 +248,7 @@
                                    Margin="0,0,0,14"/>
 
                         <!-- 如何打开 -->
-                        <Border Background="{DynamicResource SurfaceAltBrush}" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                        <Border x:Name="HowToPanel" Background="{DynamicResource SurfaceAltBrush}" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock x:Name="HowToOpenTitle"
                                            Text="如何打开轻启"
@@ -269,7 +269,7 @@
                         </Border>
 
                         <!-- 支持功能 -->
-                        <Border Background="{DynamicResource SurfaceAltBrush}" CornerRadius="8" Padding="14,12">
+                        <Border x:Name="FeaturesPanel" Background="{DynamicResource SurfaceAltBrush}" CornerRadius="8" Padding="14,12">
                             <StackPanel>
                                 <TextBlock x:Name="FeaturesTitle"
                                            Text="支持的功能"

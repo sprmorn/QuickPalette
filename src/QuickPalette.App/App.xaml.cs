@@ -327,6 +327,7 @@ public partial class App : System.Windows.Application
     private PaletteHostActions CreateHostActions() => new()
     {
         OpenSettings = ShowSettings,
+        OpenImportWizard = ShowImportWizard,
         ShowAddApp = ShowAddApp,
         SwitchTheme = SwitchTheme,
         BackupNow = BackupNow,
@@ -456,6 +457,38 @@ public partial class App : System.Windows.Application
         }
     }
 
+    /// <summary>
+    /// &gt;import 命令 / 设置页"批量导入"：复用首次向导的扫描 + 勾选 + 导入
+    /// （开始菜单 / 注册表 / UWP 全覆盖），导入完成后主面板立即刷新。
+    /// </summary>
+    private async void ShowImportWizard()
+    {
+        try
+        {
+            if (_repository == null || _logger == null)
+                return;
+
+            var settings = await _repository.GetAsync();
+            _mainWindow?.SuspendAutoHide();
+            try
+            {
+                var wizard = new FirstRunWindow(
+                    _repository, new FilterService(settings), _logger, settings.Hotkey, importMode: true);
+                wizard.ShowDialog();
+            }
+            finally
+            {
+                _mainWindow?.ResumeAutoHide();
+            }
+
+            _mainWindow?.RefreshApps();
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Show import wizard failed");
+        }
+    }
+
     private async void ShowSettings()
     {
         try
@@ -485,7 +518,8 @@ public partial class App : System.Windows.Application
             _mainWindow?.SuspendAutoHide();
             try
             {
-                var settingsWindow = new SettingsWindow(_repository, _logger, _hotkeyService, OnHotkeyPressed, _fileSearchManager);
+                var settingsWindow = new SettingsWindow(_repository, _logger, _hotkeyService, OnHotkeyPressed, _fileSearchManager,
+                    () => _mainWindow?.RefreshApps());
                 if (_mainWindow != null)
                 {
                     settingsWindow.Owner = _mainWindow;

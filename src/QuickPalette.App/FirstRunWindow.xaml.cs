@@ -33,7 +33,11 @@ public partial class FirstRunWindow : Window
     private CancellationTokenSource? _scanCts;
     private bool _scanning;
 
-    public FirstRunWindow(JsonRepository repository, FilterService filterService, ILogger logger, string hotkey)
+    /// <summary>批量导入模式：复用向导的扫描/勾选/导入界面（隐藏首次引导文案）</summary>
+    private readonly bool _importMode;
+
+    public FirstRunWindow(JsonRepository repository, FilterService filterService, ILogger logger, string hotkey,
+        bool importMode = false)
     {
         InitializeComponent();
 
@@ -41,11 +45,23 @@ public partial class FirstRunWindow : Window
         _filterService = filterService;
         _logger = logger;
         _hotkey = hotkey;
+        _importMode = importMode;
 
         ApplyUiText();
 
         // 显示实际热键
         HotkeyRun.Text = hotkey;
+
+        if (_importMode)
+        {
+            // 批量导入模式：去掉"欢迎/如何使用/功能介绍"的首次引导内容
+            Title = UiText.T("FirstRun.ImportTitle");
+            WelcomeTitle.Text = UiText.T("FirstRun.ImportTitle");
+            HowToPanel.Visibility = Visibility.Collapsed;
+            FeaturesPanel.Visibility = Visibility.Collapsed;
+            SkipButton.Content = UiText.T("Common.Cancel");
+            DoneSubtitle.Text = UiText.T("FirstRun.ImportDoneSubtitle");
+        }
 
         // 开始扫描
         Loaded += async (s, e) => await ScanCandidatesAsync();
@@ -101,13 +117,17 @@ public partial class FirstRunWindow : Window
             ApplyUiText();
 
             var manager = new ScannerManager(_filterService, _logger);
-            var rawApps = await manager.ScanAllAsync(settings, ct);
+            var rawApps = await manager.ScanAllAsync(BuildScanSettings(settings), ct);
             ct.ThrowIfCancellationRequested();
+
+            // 已入库的应用不再推荐（重扫只看新增项）
+            var existingKeys = await GetExistingKeysAsync();
 
             // 过滤"不再推荐 / 隐藏此类"的记录（hidden.json 防复活）
             var hidden = GetHiddenItemStore();
             _allCandidates = rawApps
                 .Where(r => !hidden.IsHidden(MakeHiddenKey(r)))
+                .Where(r => !existingKeys.Contains(MakeCandidateKey(r)))
                 .Select(r => new CandidateDisplayItem
                 {
                     Name = r.Name,
@@ -412,15 +432,49 @@ public partial class FirstRunWindow : Window
     }
 
     /// <summary>
-    /// 隐藏键：(Path ?? Aumid ?? Name).Trim().ToLowerInvariant()
+    /// 扫描来源 = 设置值 ∪ 默认核心来源（StartMenu/Registry/Uwp）。
+    /// 老配置缺 UWP 时也能扫到商店应用（"可以搜索 UWP 应用"），显式配置仍然生效。
     /// </summary>
-    private static string MakeHiddenKey(RawApp raw)
+    private static Settings BuildScanSettings(Settings settings)
+    {
+        var sources = new List<string>(settings.ScanSources ?? new List<string>());
+        foreach (var core in new[] { "StartMenu", "Registry", "Uwp" })
+        {
+            if (!ScannerManager.IsSourceEnabled(core, sources))
+            {
+                sources.Add(core);
+            }
+        }
+
+        return new Settings { ScanSources = sources };
+    }
+
+    /// <summary>已入库应用的去重键集合（Path ?? Aumid ?? Name，小写去空白）</summary>
+    private async Task<HashSet<string>> GetExistingKeysAsync()
+    {
+        var existing = await _repository.GetAllAsync();
+        return existing
+            .Select(a => MakeKey(a.Path ?? a.Aumid ?? a.Name))
+            .Where(static k => k.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>候选去重键（与 AppItem 口径一致：UWP 取 AUMID，其余取 Path）</summary>
+    private static string MakeCandidateKey(RawApp raw)
     {
         var primary = !string.IsNullOrWhiteSpace(raw.Path) ? raw.Path
             : !string.IsNullOrWhiteSpace(raw.Aumid) ? raw.Aumid
             : raw.Name;
-        return (primary ?? string.Empty).Trim().ToLowerInvariant();
+        return MakeKey(primary);
     }
+
+    private static string MakeKey(string? value)
+        => (value ?? string.Empty).Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// 隐藏键：(Path ?? Aumid ?? Name).Trim().ToLowerInvariant()
+    /// </summary>
+    private static string MakeHiddenKey(RawApp raw) => MakeCandidateKey(raw);
 
     #endregion
 }

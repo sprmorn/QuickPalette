@@ -87,8 +87,8 @@ public partial class MainWindow : Window
 
     private ObservableCollection<ResultDisplayItem> _currentResults = new();
 
-    /// <summary>DeepSeek 网络搜索模式（输入 DS 后按 Tab 进入；Esc/空退格退出）</summary>
-    private bool _deepSeekMode;
+    /// <summary>网络搜索模式（输入 ds/bd/dy/bl 后按 Tab 进入；Esc/空退格退出），null = 常规搜索</summary>
+    private WebSearchProvider? _webSearch;
     private List<FileHit>? _pendingFileHits;
     private bool _loadingMore;
     private readonly Dictionary<FileKind, ImageSource> _fileIconCache = new();
@@ -101,6 +101,9 @@ public partial class MainWindow : Window
 
     /// <summary>弹对话框期间抑制 Deactivated 自动隐藏（可重入计数）</summary>
     private int _suppressHideCount;
+
+    /// <summary>当前屏幕工作区底部（DIP）；面板高度不越过屏幕下边用</summary>
+    private double _workAreaBottom = double.MaxValue;
 
     /// <summary>真正退出（App.Shutdown）时置位，允许窗口关闭</summary>
     private bool _forceClose;
@@ -145,6 +148,9 @@ public partial class MainWindow : Window
 
         // 窗口图标默认深色版（App 启动后会按主题再校正一次）
         ApplyIconTheme("dark");
+
+        // 首帧渲染后重放一次结果绑定（滚动状态修复，见 OnFirstContentRendered）
+        ContentRendered += OnFirstContentRendered;
 
         Closed += (_, _) =>
         {
@@ -213,7 +219,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void ShowPalette()
     {
-        _deepSeekMode = false; // 每次唤起回到常规搜索
+        _webSearch = null; // 每次唤起回到常规搜索
         SearchBox.Text = string.Empty;
         ScheduleSearch();
 
@@ -395,6 +401,7 @@ public partial class MainWindow : Window
             // 屏幕中上方：水平居中，顶部对齐工作区上方约 15% 处（面板随结果数向下展开）
             Left = workLeft + (workWidth - Width) / 2;
             Top = workTop + Math.Max(24, workHeight * 0.15);
+            _workAreaBottom = workTop + workHeight;
         }
         catch (Exception ex)
         {
@@ -633,9 +640,9 @@ public partial class MainWindow : Window
         oldCts.Cancel();
         oldCts.Dispose(); // CTS 用后即释放
 
-        if (_deepSeekMode)
+        if (_webSearch != null)
         {
-            ApplyDeepSeekResults(query, version);
+            ApplyWebSearchResults(query, version);
             return;
         }
 
@@ -700,6 +707,13 @@ public partial class MainWindow : Window
                 displayItems.Add(CreateSystemToolDisplayItem(hit, query, seq++));
             }
 
+            // 网络搜索指令行（"bd 关键词" / "dy 关键词" / "bl 关键词" / "ds 关键词"），置顶显示
+            var web = ParseWebSearchQuery(query);
+            if (web != null)
+            {
+                displayItems.Insert(0, CreateWebSearchDisplayItem(web.Value.Provider, web.Value.Keyword, 0));
+            }
+
             // 文件搜索（索引未就绪时静默跳过）
             List<FileHit>? fileHits = null;
             if (_fileSearchManager.Status != FileIndexStatus.Disabled &&
@@ -752,6 +766,7 @@ public partial class MainWindow : Window
         _pendingFileHits = pendingFiles;
         _currentResults = items;
         ResultsList.ItemsSource = CreateGroupedView(items);
+        ResultsList.UpdateLayout(); // 立即完成度量，滚动条范围与视口同步（首屏"滚不动"修复）
         _loadingMore = false;
 
         UpdatePanelHeight(items);
@@ -762,6 +777,18 @@ public partial class MainWindow : Window
         {
             ResultsList.SelectedIndex = 0;
         }
+    }
+
+    /// <summary>
+    /// 首帧渲染后重放一次结果绑定与高度计算。
+    /// 首次唤起时结果在窗口显示前就绑定了，列表滚动范围可能未完成度量，
+    /// 表现为"内容显示不全且滚不动"；重放一次换 ItemsSource 的操作（用户实测有效手法）让滚动条重新计算。
+    /// </summary>
+    private void OnFirstContentRendered(object? sender, EventArgs e)
+    {
+        ContentRendered -= OnFirstContentRendered;
+        if (_currentResults.Count == 0) return;
+        ApplyDisplay(_currentResults, _pendingFileHits, Volatile.Read(ref _searchVersion));
     }
 
     /// <summary>分组视图：应用 / 文件 / 命令 分组标题 + 稳定排序</summary>
@@ -779,21 +806,24 @@ public partial class MainWindow : Window
     {
         var empty = _currentResults.Count == 0;
         EmptyHint.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-        EmptyHint.Text = _deepSeekMode
+        EmptyHint.Text = _webSearch != null
             ? UiText.T("main.ds.empty")
             : string.IsNullOrWhiteSpace(SearchBox.Text) && !IsCommandMode
                 ? UiText.T("main.empty.guide")
                 : UiText.T("main.empty.noMatch");
     }
 
-    /// <summary>面板高度按结果数自适应（MinHeight/MaxHeight 约束内）</summary>
+    /// <summary>面板高度按结果数自适应（MinHeight/MaxHeight 约束内，且不越过屏幕下边）</summary>
     private void UpdatePanelHeight(ObservableCollection<ResultDisplayItem> items)
     {
         var groupCount = items.Select(i => i.GroupName).Distinct().Count();
         var estimated = ChromeHeight
                         + items.Count * RowHeightEstimate
                         + groupCount * GroupHeaderHeightEstimate;
-        Height = Math.Clamp(estimated, MinHeight, MaxPanelHeight);
+
+        // 顶部定位向下展开：上限取 MaxPanelHeight 与屏幕剩余高度的较小者，矮屏上不越界
+        var maxAllowed = Math.Max(MinHeight, Math.Min(MaxPanelHeight, _workAreaBottom - Top - 12));
+        Height = Math.Clamp(estimated, MinHeight, maxAllowed);
     }
 
     /// <summary>底部提示栏：按当前模式/选中项显示可用快捷键</summary>
@@ -870,6 +900,12 @@ public partial class MainWindow : Window
             },
             new()
             {
+                Name = "import", Usage = ">import",
+                Description = UiText.T("main.cmd.import"),
+                Execute = _ => _host.OpenImportWizard()
+            },
+            new()
+            {
                 Name = "refresh", Usage = ">refresh",
                 Description = UiText.T("main.cmd.refresh"),
                 Execute = _ => RunRefreshCommand(),
@@ -929,68 +965,84 @@ public partial class MainWindow : Window
         }
     }
 
-    // ───────────────────────── DeepSeek 网络搜索模式（DS + Tab） ─────────────────────────
+    // ───────────────────────── 网络搜索（ds/bd/dy/bl 指令 + Tab 模式） ─────────────────────────
 
-    /// <summary>进入 DS 模式：清空输入等待查询串，结果区显示"搜索行动行"</summary>
-    private void EnterDeepSeekMode()
+    /// <summary>网络搜索提供器：ds=DeepSeek，bd=百度，dy=抖音，bl=哔哩哔哩</summary>
+    private static readonly WebSearchProvider[] WebSearchProviders =
     {
-        _deepSeekMode = true;
+        new("ds", "DeepSeek", "chat.deepseek.com", "https://chat.deepseek.com/?q=", "&autosend=1&search=1"),
+        new("bd", "百度", "baidu.com", "https://www.baidu.com/s?&word="),
+        new("dy", "抖音", "douyin.com", "https://www.douyin.com/root/search/"),
+        new("bl", "哔哩哔哩", "bilibili.com", "https://search.bilibili.com/all?keyword=")
+    };
+
+    /// <summary>进入网络搜索模式：清空输入等待查询串，结果区显示"搜索行动行"</summary>
+    private void EnterWebSearchMode(WebSearchProvider provider)
+    {
+        _webSearch = provider;
         SearchBox.Text = string.Empty;
         SearchBox.Focus();
-        SetHint(UiText.T("main.ds.hint"));
+        SetHint(string.Format(UiText.T("main.web.hint"), provider.Label));
         ScheduleSearch();
     }
 
-    /// <summary>退出 DS 模式：恢复常规搜索</summary>
-    private void ExitDeepSeekMode()
+    /// <summary>退出网络搜索模式：恢复常规搜索</summary>
+    private void ExitWebSearchMode()
     {
-        if (!_deepSeekMode) return;
-        _deepSeekMode = false;
+        if (_webSearch == null) return;
+        _webSearch = null;
         SearchBox.Text = string.Empty;
         ScheduleSearch();
     }
 
-    /// <summary>DS 模式渲染：结果区只放一条"用 DeepSeek 搜索「查询」"行动行（复用命令行管线）</summary>
-    private void ApplyDeepSeekResults(string query, int version)
+    /// <summary>网络搜索模式渲染：结果区只放一条"用 X 搜索「查询」"行动行（复用命令行管线）</summary>
+    private void ApplyWebSearchResults(string query, int version)
     {
+        var provider = _webSearch ?? WebSearchProviders[0];
         var items = new ObservableCollection<ResultDisplayItem>();
         var keyword = query.Trim();
         if (keyword.Length > 0)
         {
-            var name = string.Format(UiText.T("main.ds.row"), keyword);
-            items.Add(new ResultDisplayItem
-            {
-                Kind = ResultKind.Command,
-                Command = new CommandItem
-                {
-                    Name = "deepseek",
-                    Usage = name,
-                    Description = UiText.T("main.ds.rowSecondary"),
-                    Execute = _ => LaunchDeepSeekSearch(keyword),
-                    CloseAfterExecute = true
-                },
-                Id = "deepseek",
-                Name = name,
-                Path = "chat.deepseek.com",
-                SecondaryText = UiText.T("main.ds.rowSecondary"),
-                Icon = _defaultIcon ?? new BitmapImage(),
-                NameSegments = BuildSegments(name, keyword),
-                LaunchHint = UiText.T("main.ds.launchHint"),
-                TypeLabel = "DeepSeek",
-                GroupName = UiText.T("main.ds.group"),
-                GroupRank = 2,
-                Sequence = 0
-            });
+            items.Add(CreateWebSearchDisplayItem(provider, keyword, 0));
         }
 
         ApplyDisplay(items, null, version);
-        SetHint(UiText.T("main.ds.hint"));
+        SetHint(string.Format(UiText.T("main.web.hint"), provider.Label));
     }
 
-    /// <summary>打开 DeepSeek 网络搜索页（URL 形如浏览器搜索引擎配置，自动发送搜索）</summary>
-    private void LaunchDeepSeekSearch(string keyword)
+    /// <summary>构造"用 X 搜索「关键词」"行动行（Kind=Command，回车即打开浏览器）</summary>
+    private ResultDisplayItem CreateWebSearchDisplayItem(WebSearchProvider provider, string keyword, int sequence)
     {
-        var url = "https://chat.deepseek.com/?q=" + Uri.EscapeDataString(keyword) + "&autosend=1&search=1";
+        var name = string.Format(UiText.T("main.web.row"), provider.Label, keyword);
+        return new ResultDisplayItem
+        {
+            Kind = ResultKind.Command,
+            Command = new CommandItem
+            {
+                Name = "websearch",
+                Usage = name,
+                Description = provider.Host,
+                Execute = _ => LaunchWebSearch(provider, keyword),
+                CloseAfterExecute = true
+            },
+            Id = "websearch:" + provider.Code,
+            Name = name,
+            Path = provider.Host,
+            SecondaryText = provider.Host,
+            Icon = _defaultIcon ?? new BitmapImage(),
+            NameSegments = BuildSegments(name, keyword),
+            LaunchHint = UiText.T("main.ds.launchHint"),
+            TypeLabel = provider.Label,
+            GroupName = UiText.T("main.ds.group"),
+            GroupRank = -1,
+            Sequence = sequence
+        };
+    }
+
+    /// <summary>打开网络搜索页（关键词 URL 编码后拼入搜索地址）</summary>
+    private void LaunchWebSearch(WebSearchProvider provider, string keyword)
+    {
+        var url = provider.BuildUrl(keyword);
         try
         {
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
@@ -998,9 +1050,27 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "DeepSeek search launch failed");
+            _logger.Error(ex, "Web search launch failed: {Provider}", provider.Code);
             SetHint(string.Format(UiText.T("main.launch.failed"), url));
         }
+    }
+
+    /// <summary>
+    /// 解析"指令 + 空格 + 关键词"（如 "bd 天气" / "bl 编程" / "dy 舞蹈" / "ds rust"）。
+    /// 仅当指令后跟空白与非空关键词时才命中，"blender" 等普通查询不受影响。
+    /// </summary>
+    private static (WebSearchProvider Provider, string Keyword)? ParseWebSearchQuery(string query)
+    {
+        var trimmed = query.Trim();
+        var sep = trimmed.IndexOfAny(new[] { ' ', '\u3000' });
+        if (sep <= 0) return null;
+
+        var code = trimmed[..sep].ToLowerInvariant();
+        var keyword = trimmed[(sep + 1)..].Trim();
+        if (keyword.Length == 0) return null;
+
+        var provider = Array.Find(WebSearchProviders, p => p.Code == code);
+        return provider == null ? null : (provider, keyword);
     }
 
     /// <summary>回车执行命令（以输入框内容为准；"&gt;" 明确输入时执行选中行）</summary>
@@ -1105,18 +1175,20 @@ public partial class MainWindow : Window
     {
         if (e.Key != Key.Tab) return;
 
-        if (_deepSeekMode)
+        if (_webSearch != null)
         {
             e.Handled = true; // 模式内 Tab 不做焦点导航
             return;
         }
 
-        // "DS" + Tab 进入 DeepSeek 网络搜索模式（可在设置中关闭）
-        if (_host.IsDeepSeekSearchEnabled()
+        // 指令 + Tab 进入网络搜索模式：ds=DeepSeek（可在设置中关闭）/ bd=百度 / dy=抖音 / bl=哔哩哔哩
+        var code = SearchBox.Text.Trim().ToLowerInvariant();
+        var provider = Array.Find(WebSearchProviders, p => p.Code == code);
+        if (provider != null
             && !IsCommandMode
-            && SearchBox.Text.Trim().Equals("ds", StringComparison.OrdinalIgnoreCase))
+            && (provider.Code != "ds" || _host.IsDeepSeekSearchEnabled()))
         {
-            EnterDeepSeekMode();
+            EnterWebSearchMode(provider);
             e.Handled = true;
         }
     }
@@ -1130,10 +1202,10 @@ public partial class MainWindow : Window
         switch (e.Key)
         {
             case Key.Escape:
-                if (_deepSeekMode)
+                if (_webSearch != null)
                 {
-                    // DS 模式下 Esc 先退出模式（保留面板），再按才隐藏
-                    ExitDeepSeekMode();
+                    // 网络搜索模式下 Esc 先退出模式（保留面板），再按才隐藏
+                    ExitWebSearchMode();
                 }
                 else
                 {
@@ -1144,21 +1216,21 @@ public partial class MainWindow : Window
                 break;
 
             case Key.Back:
-                // DS 模式下查询为空时退格 = 退出模式
-                if (_deepSeekMode && SearchBox.Text.Length == 0)
+                // 网络搜索模式下查询为空时退格 = 退出模式
+                if (_webSearch != null && SearchBox.Text.Length == 0)
                 {
-                    ExitDeepSeekMode();
+                    ExitWebSearchMode();
                     e.Handled = true;
                 }
                 break;
 
             case Key.Enter:
-                if (_deepSeekMode)
+                if (_webSearch != null)
                 {
                     var keyword = SearchBox.Text.Trim();
                     if (keyword.Length > 0)
                     {
-                        LaunchDeepSeekSearch(keyword);
+                        LaunchWebSearch(_webSearch, keyword);
                     }
                 }
                 else if (IsCommandMode)
@@ -1205,9 +1277,9 @@ public partial class MainWindow : Window
         switch (e.Key)
         {
             case Key.Escape:
-                if (_deepSeekMode)
+                if (_webSearch != null)
                 {
-                    ExitDeepSeekMode();
+                    ExitWebSearchMode();
                     SearchBox.Focus();
                 }
                 else
@@ -1219,12 +1291,12 @@ public partial class MainWindow : Window
                 break;
 
             case Key.Enter:
-                if (_deepSeekMode)
+                if (_webSearch != null)
                 {
                     var keyword = SearchBox.Text.Trim();
                     if (keyword.Length > 0)
                     {
-                        LaunchDeepSeekSearch(keyword);
+                        LaunchWebSearch(_webSearch, keyword);
                     }
                     else
                     {
@@ -2365,6 +2437,13 @@ public partial class MainWindow : Window
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     #endregion
+}
+
+/// <summary>网络搜索提供器（指令前缀 + 搜索地址模板）</summary>
+public sealed record WebSearchProvider(string Code, string Label, string Host, string UrlPrefix, string UrlSuffix = "")
+{
+    /// <summary>拼接搜索 URL（关键词 URL 编码）</summary>
+    public string BuildUrl(string keyword) => UrlPrefix + Uri.EscapeDataString(keyword) + UrlSuffix;
 }
 
 /// <summary>结果类型</summary>

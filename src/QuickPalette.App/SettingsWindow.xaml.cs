@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 using QuickPalette.App.Services;
 using QuickPalette.Domain.Models;
+using QuickPalette.Domain.Services;
 using QuickPalette.Infrastructure.Storage;
 using Serilog;
 
@@ -29,6 +30,9 @@ public partial class SettingsWindow : Window
     private readonly ILogger _logger;
     private readonly HotkeyService _hotkeyService;
     private readonly Action _onHotkeyPressed;
+
+    /// <summary>批量导入完成后回调（刷新主面板应用池）</summary>
+    private readonly Action? _onAppsImported;
     private readonly FileSearchManager? _fileSearchManager;
     private readonly DispatcherTimer _fileStatusTimer;
 
@@ -54,7 +58,7 @@ public partial class SettingsWindow : Window
     private BackupService? _backupService;
 
     public SettingsWindow(JsonRepository repository, ILogger logger, HotkeyService hotkeyService,
-        Action onHotkeyPressed, FileSearchManager? fileSearchManager = null)
+        Action onHotkeyPressed, FileSearchManager? fileSearchManager = null, Action? onAppsImported = null)
     {
         InitializeComponent();
 
@@ -62,6 +66,7 @@ public partial class SettingsWindow : Window
         _logger = logger;
         _hotkeyService = hotkeyService;
         _onHotkeyPressed = onHotkeyPressed;
+        _onAppsImported = onAppsImported;
         _fileSearchManager = fileSearchManager;
 
         // 定期刷新文件搜索状态（索引构建期间可见进度）
@@ -129,6 +134,7 @@ public partial class SettingsWindow : Window
         TabBackupItem.Header = UiText.T("Settings.TabBackup");
 
         AddAppButton.Content = UiText.T("Settings.AddApp");
+        ImportAppsButton.Content = UiText.T("Settings.ImportApps");
         CancelButton.Content = UiText.T("Common.Cancel");
         SaveButton.Content = UiText.T("Common.Save");
 
@@ -264,6 +270,30 @@ public partial class SettingsWindow : Window
             _allApps.Add(addWindow.Result);
             SearchBox_TextChanged(SearchBox, null!);
             _logger.Information("Added app: {Name}", addWindow.Result.Name);
+        }
+    }
+
+    /// <summary>批量导入：复用首次向导的扫描/勾选/导入界面（开始菜单/注册表/UWP），导入后刷新列表与主面板</summary>
+    private async void ImportApps_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var wizard = new FirstRunWindow(
+                _repository, new FilterService(_settings), _logger, _settings.Hotkey, importMode: true)
+            {
+                Owner = this
+            };
+            wizard.ShowDialog();
+
+            // 刷新本页列表 + 通知主面板刷新应用池
+            _allApps = await _repository.GetAllAsync();
+            SearchBox_TextChanged(SearchBox, null!);
+            _onAppsImported?.Invoke();
+            _logger.Information("Import wizard closed");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Open import wizard failed");
         }
     }
 
