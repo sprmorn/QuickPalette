@@ -176,6 +176,7 @@ public sealed class ScreenshotService : IDisposable
             pin.Closed += (_, _) => _pins.Remove(pin);
             _pins.Add(pin);
             pin.Show();
+            _logger.Information("Pin created ({Width}x{Height}px)", image.PixelWidth, image.PixelHeight);
         }
         catch (Exception ex)
         {

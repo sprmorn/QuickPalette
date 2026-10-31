@@ -108,7 +108,7 @@
 
                 <Border Width="1" Background="#44FFFFFF" Margin="8,2"/>
 
-                <TextBlock Text="粗细" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,6,0"/>
+                <TextBlock x:Name="WidthLabel" Text="粗细" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,6,0"/>
                 <Slider x:Name="WidthSlider" Width="110" Minimum="1" Maximum="24" Value="3"
                         VerticalAlignment="Center" ValueChanged="WidthSlider_Changed"/>
                 <TextBlock x:Name="WidthText" Text="3" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"/>

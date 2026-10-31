@@ -60,6 +60,8 @@ public partial class OverlayWindow : Window
     private string _tool = "Rectangle";
     private RgbaColor _color;
     private double _width = 3;
+    private double _fontSize = 24;
+    private bool _erasing;
     private AnnotationObject? _drawing;
 
     // 取色器当前采样色
@@ -158,6 +160,7 @@ public partial class OverlayWindow : Window
             _color = c;
         };
         Toolbar.WidthSelected += w => _width = w;
+        Toolbar.FontSizeSelected += f => _fontSize = f;
     }
 
     private void SetTool(string tag)
@@ -302,6 +305,12 @@ public partial class OverlayWindow : Window
             return;
         }
 
+        if (_erasing)
+        {
+            EraseAt(pos);
+            return;
+        }
+
         if (_drawing != null)
         {
             UpdateDrawing(pos);
@@ -319,8 +328,8 @@ public partial class OverlayWindow : Window
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // 工具栏上的点击不算画布操作
-        if (IsInsideToolbar(e.OriginalSource))
+        // 工具栏/文字输入框上的点击不算画布操作（点进输入框不应重置文字）
+        if (IsInsideElement(e.OriginalSource, Toolbar) || IsInsideElement(e.OriginalSource, TextInput))
         {
             return;
         }
@@ -395,6 +404,13 @@ public partial class OverlayWindow : Window
                 CommitSelection();
             }
 
+            return;
+        }
+
+        if (_erasing)
+        {
+            _erasing = false;
+            ReleaseMouseCapture();
             return;
         }
 
@@ -604,11 +620,11 @@ public partial class OverlayWindow : Window
         Canvas.SetTop(Toolbar, y);
     }
 
-    private bool IsInsideToolbar(object? source)
+    private bool IsInsideElement(object? source, DependencyObject target)
     {
         for (DependencyObject? d = source as DependencyObject; d != null; d = System.Windows.Media.VisualTreeHelper.GetParent(d))
         {
-            if (ReferenceEquals(d, Toolbar))
+            if (ReferenceEquals(d, target))
             {
                 return true;
             }
@@ -627,6 +643,8 @@ public partial class OverlayWindow : Window
         {
             case "Eraser":
                 EraseAt(pos);
+                _erasing = true;
+                CaptureMouse(); // 拖动连续擦
                 return;
             case "Text":
                 BeginText(pos);
@@ -699,8 +717,9 @@ public partial class OverlayWindow : Window
                 return;
             }
         }
-        else if (drawing.Frame.Width < 2 && drawing.Frame.Height < 2)
+        else if (drawing.Frame.Width < 2 || drawing.Frame.Height < 2)
         {
+            // 退化图形（误点/水平垂直拖拽）不入历史
             _doc.Remove(drawing.Id);
             SyncCanvas();
             return;
@@ -738,16 +757,39 @@ public partial class OverlayWindow : Window
         SyncCanvas();
     }
 
+    /// <summary>
+    /// 橡皮擦：画笔/荧光笔 = 点擦（擦掉光标附近的笔迹片段，剩余段拆成新笔画，可撤销）；
+    /// 形状/文字/马赛克 = 点击删除整个对象。
+    /// </summary>
     private void EraseAt(Point pos)
     {
-        var hit = _doc.HitTest(ToDoc(pos), 6);
+        var doc = ToDoc(pos);
+        var hit = _doc.HitTest(doc, 6);
         if (hit == null)
         {
             return;
         }
 
-        var index = _doc.IndexOf(hit.Id);
-        _stack.Execute(new RemoveAnnotationCommand(hit, index), _doc);
+        if (hit.Kind is AnnotationKind.Brush or AnnotationKind.Highlight)
+        {
+            var radius = (float)(6 + hit.Style.StrokeWidth / 2);
+            var pieces = StrokeSplitter.Split(hit, doc, radius);
+
+            // 未命中任何点（擦过空隙）：不产生命令
+            if (pieces.Count == 1 && pieces[0].Points.Count == hit.Points.Count)
+            {
+                return;
+            }
+
+            var index = _doc.IndexOf(hit.Id);
+            _stack.Execute(new SplitStrokeCommand(hit, pieces, index), _doc);
+        }
+        else
+        {
+            var index = _doc.IndexOf(hit.Id);
+            _stack.Execute(new RemoveAnnotationCommand(hit, index), _doc);
+        }
+
         SyncCanvas();
         RefreshHistoryState();
     }
@@ -928,12 +970,15 @@ public partial class OverlayWindow : Window
 
     private void BeginText(Point pos)
     {
+        // 已有输入框未提交：先提交旧文字，再在新位置开新框（点别处=放置完成+继续添加）
+        CommitText();
+
         TextInput.Visibility = Visibility.Visible;
         Canvas.SetLeft(TextInput, pos.X);
         Canvas.SetTop(TextInput, pos.Y);
-        TextInput.Width = 180;
+        TextInput.Width = 240;
         TextInput.Text = string.Empty;
-        TextInput.FontSize = 16;
+        TextInput.FontSize = _fontSize;
         TextInput.Foreground = new SolidColorBrush(
             System.Windows.Media.Color.FromArgb(_color.A, _color.R, _color.G, _color.B));
         TextInput.Focus();
@@ -977,9 +1022,9 @@ public partial class OverlayWindow : Window
         {
             Kind = AnnotationKind.Text,
             Text = text,
-            Style = new AnnotationStyle { Color = _color, FontSize = 16 },
+            Style = new AnnotationStyle { Color = _color, FontSize = (int)_fontSize },
             Frame = new System.Drawing.RectangleF(
-                (float)(pos.X - _selection.X), (float)(pos.Y - _selection.Y), 180, 24)
+                (float)(pos.X - _selection.X), (float)(pos.Y - _selection.Y), 240, (float)_fontSize + 8)
         };
         _stack.Execute(new AddAnnotationCommand(annotation, _doc.Annotations.Count), _doc);
         SyncCanvas();
@@ -1058,6 +1103,7 @@ public partial class OverlayWindow : Window
         _hasSelection = false;
         _selection = new Rect();
         _dragging = false;
+        _erasing = false;
         _drawing = null;
         _doc = new AnnotationDocument((float)Width, (float)Height);
         _stack.Clear();

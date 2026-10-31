@@ -21,9 +21,17 @@ public partial class ScreenshotToolbar : UserControl
     public event Action? PinRequested;
     public event Action? ExitRequested;
     public event Action<RgbaColor>? ColorSelected;
+
+    /// <summary>粗细（非文字工具）</summary>
     public event Action<double>? WidthSelected;
 
+    /// <summary>字号（文字工具）</summary>
+    public event Action<double>? FontSizeSelected;
+
     private bool _loading;
+
+    /// <summary>当前滑条语义：true=字号（文字工具），false=粗细</summary>
+    private bool _fontSizeMode;
 
     public ScreenshotToolbar()
     {
@@ -48,7 +56,7 @@ public partial class ScreenshotToolbar : UserControl
         ToolRect.IsChecked = true;
     }
 
-    /// <summary>同步工具按钮选中态（键盘快捷键切换时调用）</summary>
+    /// <summary>同步工具按钮选中态（键盘快捷键切换时调用）；并切换滑条语义（文字=字号）</summary>
     public void SetTool(string tag)
     {
         var target = tag switch
@@ -65,6 +73,36 @@ public partial class ScreenshotToolbar : UserControl
             _ => ToolRect
         };
         target.IsChecked = true;
+        SetSliderMode(tag == "Text");
+    }
+
+    /// <summary>滑条语义切换：文字工具=字号（12-72），其余=粗细（1-24）</summary>
+    private void SetSliderMode(bool fontSizeMode)
+    {
+        if (_fontSizeMode == fontSizeMode)
+        {
+            return;
+        }
+
+        _fontSizeMode = fontSizeMode;
+        _loading = true;
+        if (fontSizeMode)
+        {
+            WidthLabel.Text = "字号";
+            WidthSlider.Minimum = 12;
+            WidthSlider.Maximum = 72;
+            WidthSlider.Value = Math.Clamp(WidthSlider.Value * 8, 12, 72);
+        }
+        else
+        {
+            WidthLabel.Text = "粗细";
+            WidthSlider.Minimum = 1;
+            WidthSlider.Maximum = 24;
+            WidthSlider.Value = Math.Clamp(WidthSlider.Value / 8, 1, 24);
+        }
+
+        WidthText.Text = ((int)WidthSlider.Value).ToString();
+        _loading = false;
     }
 
     /// <summary>同步撤销/重做按钮可用态</summary>
@@ -99,7 +137,14 @@ public partial class ScreenshotToolbar : UserControl
             WidthText.Text = ((int)e.NewValue).ToString();
         }
 
-        WidthSelected?.Invoke(e.NewValue);
+        if (_fontSizeMode)
+        {
+            FontSizeSelected?.Invoke(e.NewValue);
+        }
+        else
+        {
+            WidthSelected?.Invoke(e.NewValue);
+        }
     }
 
     private void Undo_Click(object sender, RoutedEventArgs e) => UndoRequested?.Invoke();
