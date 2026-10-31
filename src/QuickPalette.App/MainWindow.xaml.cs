@@ -2132,7 +2132,7 @@ public partial class MainWindow : Window
             NameSegments = BuildSegments(entry.Name, query),
             LaunchHint = entry.IsDirectory ? UiText.T("main.menu.openFolder") : UiText.T("main.menu.open"),
             TypeLabel = GetFileTypeLabel(kind),
-            ModifiedText = entry.Modified.ToLocalTime().ToString("MM-dd HH:mm", CultureInfo.InvariantCulture),
+            ModifiedText = FormatFileModified(entry),
             GroupName = UiText.T("main.group.file"),
             GroupRank = 2,
             Sequence = sequence
@@ -2158,6 +2158,43 @@ public partial class MainWindow : Window
             Sequence = sequence
         };
     }
+
+    /// <summary>
+    /// 文件修改时间展示：优先 stat 真实文件系统时间。
+    /// 背景缺陷：索引全量枚举走 FSCTL_ENUM_USN_DATA，该接口返回的 USN_RECORD.TimeStamp 恒为 0
+    /// （系统已知行为），索引里存的是 1601-01-01"无时间"哨兵，曾被直接展示成"01-01 08:00"；
+    /// 仅增量 USN 更新过的条目才带真实时间。stat 失败/文件已删时回退索引时间，仍无效则不显示。
+    /// </summary>
+    private static string FormatFileModified(FileEntry entry)
+    {
+        var ticks = 0L;
+        try
+        {
+            ticks = File.GetLastWriteTimeUtc(entry.Path).Ticks;
+        }
+        catch
+        {
+            // 路径过长/无权限：回退索引时间
+        }
+
+        if (IsEmptyFileTime(ticks))
+        {
+            ticks = entry.Modified.Ticks;
+        }
+
+        if (IsEmptyFileTime(ticks))
+        {
+            return string.Empty;
+        }
+
+        return new DateTime(ticks, DateTimeKind.Utc)
+            .ToLocalTime()
+            .ToString("MM-dd HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>是否为"无时间"哨兵（ticks=0 或 FILETIME 0 = 1601-01-01）</summary>
+    private static bool IsEmptyFileTime(long ticks)
+        => ticks == 0 || ticks == DateTime.FromFileTimeUtc(0).Ticks;
 
     /// <summary>按查询串把文本切成高亮分段（命中 Run 高亮）</summary>
     private static List<TextSegment> BuildSegments(string text, string query)
