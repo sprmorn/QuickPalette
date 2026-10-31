@@ -382,10 +382,7 @@ public partial class App : System.Windows.Application
             try
             {
                 addWindow = new AddAppWindow(prefill);
-                if (_mainWindow != null)
-                {
-                    addWindow.Owner = _mainWindow;
-                }
+                TrySetOwner(addWindow);
 
                 if (addWindow.ShowDialog() != true || addWindow.Result == null)
                     return;
@@ -548,10 +545,7 @@ public partial class App : System.Windows.Application
             {
                 var settingsWindow = new SettingsWindow(_repository, _logger, _hotkeyService, OnHotkeyPressed, _fileSearchManager,
                     () => _mainWindow?.RefreshApps());
-                if (_mainWindow != null)
-                {
-                    settingsWindow.Owner = _mainWindow;
-                }
+                TrySetOwner(settingsWindow);
 
                 settingsWindow.ShowDialog();
             }
@@ -579,6 +573,18 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             _logger?.Error(ex, "Show settings failed");
+            try
+            {
+                MessageBox.Show(
+                    string.Format(UiText.T("app.settings.failed"), ex.Message),
+                    UiText.T("app.settings.failed.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch
+            {
+                // 提示失败不影响退出
+            }
         }
     }
 
@@ -636,6 +642,26 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>托盘"退出"：真正关闭主窗口（绕过 Closing 拦截）后退出</summary>
+    /// <summary>
+    /// 安全设置对话框 Owner：WPF 不允许把 Owner 设为"从未显示过"的窗口——
+    /// 托盘直接打开设置/添加应用时主面板可能还没显示过，直接赋值会抛异常导致对话框根本打不开
+    /// （表现为"先开一次主界面，设置才能打开"）。
+    /// </summary>
+    private void TrySetOwner(Window dialog)
+    {
+        try
+        {
+            if (_mainWindow != null && _mainWindow.IsLoaded)
+            {
+                dialog.Owner = _mainWindow;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.Warning(ex, "Set dialog owner failed (non-fatal, dialog opens without owner)");
+        }
+    }
+
     /// <summary>截图热键触发（Alt+D 或设置中的自定义键）</summary>
     private void OnScreenshotHotkeyPressed() => _screenshotService?.StartCapture();
 
