@@ -27,9 +27,11 @@ public partial class ScreenshotToolbar : UserControl
 
     public ScreenshotToolbar()
     {
+        // 必须在 InitializeComponent 前置位：XAML 解析中 WidthSlider.Value=3 会触发 ValueChanged，
+        // 此刻 WidthText 尚未解析（null），不加防护会 NRE 炸掉整个覆盖层创建
+        _loading = true;
         InitializeComponent();
 
-        _loading = true;
         Palette.ItemsSource = new[]
         {
             new SwatchItem(RgbaColor.Red),
@@ -92,7 +94,11 @@ public partial class ScreenshotToolbar : UserControl
     private void WidthSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (_loading) return;
-        WidthText.Text = ((int)e.NewValue).ToString();
+        if (WidthText != null)
+        {
+            WidthText.Text = ((int)e.NewValue).ToString();
+        }
+
         WidthSelected?.Invoke(e.NewValue);
     }
 

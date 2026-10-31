@@ -81,6 +81,18 @@ public sealed class ScreenshotService : IDisposable
         catch (Exception ex)
         {
             _logger.Error(ex, "Start screenshot capture failed");
+            try
+            {
+                System.Windows.MessageBox.Show(
+                    string.Format(Services.UiText.T("app.screenshot.failed"), ex.Message),
+                    Services.UiText.T("app.screenshot.failed.title"),
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+            catch
+            {
+                // 提示失败也不影响退出
+            }
         }
     }
 
