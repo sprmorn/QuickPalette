@@ -807,7 +807,7 @@ public partial class MainWindow : Window
         var empty = _currentResults.Count == 0;
         EmptyHint.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
         EmptyHint.Text = _webSearch != null
-            ? UiText.T("main.ds.empty")
+            ? string.Format(UiText.T("main.web.empty"), _webSearch.Label)
             : string.IsNullOrWhiteSpace(SearchBox.Text) && !IsCommandMode
                 ? UiText.T("main.empty.guide")
                 : UiText.T("main.empty.noMatch");
