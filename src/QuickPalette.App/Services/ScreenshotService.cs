@@ -122,9 +122,9 @@ public sealed class ScreenshotService : IDisposable
         HideAll();
     }
 
-    private void OnPinned(BitmapSource image)
+    private void OnPinned(BitmapSource image, System.Drawing.Rectangle pixelOrigin)
     {
-        CreatePin(image);
+        CreatePin(image, pixelOrigin);
         HideAll();
     }
 
@@ -168,15 +168,16 @@ public sealed class ScreenshotService : IDisposable
         }
     }
 
-    private void CreatePin(BitmapSource image)
+    private void CreatePin(BitmapSource image, System.Drawing.Rectangle pixelOrigin)
     {
         try
         {
-            var pin = new PinWindow(image, _logger);
+            var pin = new PinWindow(image, _logger, pixelOrigin);
             pin.Closed += (_, _) => _pins.Remove(pin);
             _pins.Add(pin);
             pin.Show();
-            _logger.Information("Pin created ({Width}x{Height}px)", image.PixelWidth, image.PixelHeight);
+            _logger.Information("Pin created ({Width}x{Height}px) at ({X},{Y})",
+                image.PixelWidth, image.PixelHeight, pixelOrigin.X, pixelOrigin.Y);
         }
         catch (Exception ex)
         {

@@ -64,13 +64,16 @@ public partial class OverlayWindow : Window
     private bool _erasing;
     private AnnotationObject? _drawing;
 
+    /// <summary>绘制起点（按下瞬间固定；不能用当前 Frame 左上角——反向拖拽时会跟着鼠标漂移）</summary>
+    private Point _drawingStart;
+
     // 取色器当前采样色
     private RgbaColor _pickerColor = RgbaColor.White;
 
-    /// <summary>结果回调（由 ScreenshotService 处理剪贴板/文件/钉图）</summary>
+    /// <summary>结果回调（由 ScreenshotService 处理剪贴板/文件/钉图）；钉图附带选区屏幕像素位置（钉回原位）</summary>
     public event Action<BitmapSource>? Copied;
     public event Action<BitmapSource>? Saved;
-    public event Action<BitmapSource>? Pinned;
+    public event Action<BitmapSource, System.Drawing.Rectangle>? Pinned;
     public event Action? Exited;
 
     public OverlayWindow(ILogger logger)
@@ -266,12 +269,23 @@ public partial class OverlayWindow : Window
     {
         try
         {
-            Pinned?.Invoke(image);
+            Pinned?.Invoke(image, GetSelectionPixelBounds());
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Screenshot pin failed");
         }
+    }
+
+    /// <summary>选区的屏幕像素矩形（钉图定位用：钉回截图原位置）</summary>
+    private System.Drawing.Rectangle GetSelectionPixelBounds()
+    {
+        var b = _monitor.PixelBounds;
+        return new System.Drawing.Rectangle(
+            b.X + (int)Math.Round(_selection.X * _scale),
+            b.Y + (int)Math.Round(_selection.Y * _scale),
+            Math.Max(1, (int)Math.Round(_selection.Width * _scale)),
+            Math.Max(1, (int)Math.Round(_selection.Height * _scale)));
     }
 
     /// <summary>输出类动作：有选区先合成，无选区按全屏</summary>
@@ -680,6 +694,7 @@ public partial class OverlayWindow : Window
             }
         };
 
+        _drawingStart = pos; // 按下瞬间固定起点
         CaptureMouse(); // 拖出窗口仍跟手
 
         var local = ToDoc(pos);
@@ -747,10 +762,12 @@ public partial class OverlayWindow : Window
         }
         else
         {
-            var start = new PointF((float)_drawing.Frame.X, (float)_drawing.Frame.Y);
+            // 始终以按下瞬间的起点为对角基准（反向拖拽也不会漂移）
+            var sx = (float)(_drawingStart.X - _selection.X);
+            var sy = (float)(_drawingStart.Y - _selection.Y);
             var frame = System.Drawing.RectangleF.FromLTRB(
-                Math.Min(start.X, local.X), Math.Min(start.Y, local.Y),
-                Math.Max(start.X, local.X), Math.Max(start.Y, local.Y));
+                Math.Min(sx, local.X), Math.Min(sy, local.Y),
+                Math.Max(sx, local.X), Math.Max(sy, local.Y));
             _drawing.Frame = frame;
         }
 
