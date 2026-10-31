@@ -36,78 +36,82 @@
             </Path.Data>
         </Path>
 
-        <!-- 智能框选高亮（光标下候选窗口） -->
-        <Rectangle x:Name="SmartRect"
-                   Stroke="#FF4C8DFF"
-                   StrokeThickness="2"
-                   Fill="#224C8DFF"
-                   Visibility="Collapsed"
-                   IsHitTestVisible="False" />
+        <!-- 定位层：选区/标注/标签/工具栏都靠 Canvas.SetLeft/Top 定位，
+             必须放在 Canvas 内（Grid 子元素不认这两个附加属性，会全堆在左上角） -->
+        <Canvas x:Name="LayoutCanvas" ClipToBounds="True">
+            <!-- 智能框选高亮（光标下候选窗口） -->
+            <Rectangle x:Name="SmartRect"
+                       Stroke="#FF4C8DFF"
+                       StrokeThickness="2"
+                       Fill="#224C8DFF"
+                       Visibility="Collapsed"
+                       IsHitTestVisible="False" />
 
-        <!-- 标注画布（限于选区内，随选区移动/裁剪） -->
-        <Canvas x:Name="AnnotationCanvas"
-                Visibility="Collapsed"
-                ClipToBounds="True"
-                IsHitTestVisible="False" />
+            <!-- 标注画布（限于选区内，随选区移动/裁剪） -->
+            <Canvas x:Name="AnnotationCanvas"
+                    Visibility="Collapsed"
+                    ClipToBounds="True"
+                    IsHitTestVisible="False" />
 
-        <!-- 选区边框 -->
-        <Rectangle x:Name="SelectionBorder"
-                   Stroke="#FF4C8DFF"
-                   StrokeThickness="1"
-                   Visibility="Collapsed"
-                   IsHitTestVisible="False" />
+            <!-- 选区边框 -->
+            <Rectangle x:Name="SelectionBorder"
+                       Stroke="#FF4C8DFF"
+                       StrokeThickness="1"
+                       Visibility="Collapsed"
+                       IsHitTestVisible="False" />
 
-        <!-- 选区尺寸标签 -->
-        <Border x:Name="SizeBadge"
-                Background="#DD1F2937"
-                CornerRadius="4"
-                Padding="8,4"
-                Visibility="Collapsed"
-                IsHitTestVisible="False">
-            <TextBlock x:Name="SizeText"
-                       Foreground="White"
-                       FontSize="12" />
-        </Border>
-
-        <!-- 文字标注输入框 -->
-        <TextBox x:Name="TextInput"
-                 Visibility="Collapsed"
-                 Background="#CC1F2937"
-                 Foreground="White"
-                 BorderBrush="#FF4C8DFF"
-                 Padding="4,2"
-                 FontSize="16"
-                 AcceptsReturn="False"
-                 KeyDown="TextInput_KeyDown"
-                 LostKeyboardFocus="TextInput_LostFocus" />
-
-        <!-- 取色浮层：放大镜 + 颜色值 -->
-        <Canvas x:Name="PickerLayer" IsHitTestVisible="False">
-            <Border x:Name="PickerBadge"
-                    Background="#E61F2937"
-                    CornerRadius="6"
-                    Padding="10,8"
-                    Visibility="Collapsed">
-                <StackPanel>
-                    <Border Width="88" Height="88" CornerRadius="4" ClipToBounds="True">
-                        <Image x:Name="MagnifierImage" Stretch="UniformToFill" />
-                    </Border>
-                    <Border x:Name="PickerSwatch" Height="18" CornerRadius="3" Margin="0,6,0,2" />
-                    <TextBlock x:Name="PickerText"
-                               Foreground="White"
-                               FontSize="12"
-                               FontFamily="Consolas" />
-                </StackPanel>
+            <!-- 选区尺寸标签 -->
+            <Border x:Name="SizeBadge"
+                    Background="#DD1F2937"
+                    CornerRadius="4"
+                    Padding="8,4"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False">
+                <TextBlock x:Name="SizeText"
+                           Foreground="White"
+                           FontSize="12" />
             </Border>
-            <Ellipse x:Name="PickerCursor"
-                     Width="14" Height="14"
-                     Stroke="White"
-                     StrokeThickness="1.5"
-                     Visibility="Collapsed" />
-        </Canvas>
 
-        <!-- 工具栏 -->
-        <local:ScreenshotToolbar x:Name="Toolbar"
-                                Visibility="Collapsed" />
+            <!-- 文字标注输入框 -->
+            <TextBox x:Name="TextInput"
+                     Visibility="Collapsed"
+                     Background="#CC1F2937"
+                     Foreground="White"
+                     BorderBrush="#FF4C8DFF"
+                     Padding="4,2"
+                     FontSize="16"
+                     AcceptsReturn="False"
+                     KeyDown="TextInput_KeyDown"
+                     LostKeyboardFocus="TextInput_LostFocus" />
+
+            <!-- 取色浮层：放大镜 + 颜色值 -->
+            <Canvas x:Name="PickerLayer" IsHitTestVisible="False">
+                <Border x:Name="PickerBadge"
+                        Background="#E61F2937"
+                        CornerRadius="6"
+                        Padding="10,8"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <Border Width="88" Height="88" CornerRadius="4" ClipToBounds="True">
+                            <Image x:Name="MagnifierImage" Stretch="UniformToFill" />
+                        </Border>
+                        <Border x:Name="PickerSwatch" Height="18" CornerRadius="3" Margin="0,6,0,2" />
+                        <TextBlock x:Name="PickerText"
+                                   Foreground="White"
+                                   FontSize="12"
+                                   FontFamily="Consolas" />
+                    </StackPanel>
+                </Border>
+                <Ellipse x:Name="PickerCursor"
+                         Width="14" Height="14"
+                         Stroke="White"
+                         StrokeThickness="1.5"
+                         Visibility="Collapsed" />
+            </Canvas>
+
+            <!-- 工具栏 -->
+            <local:ScreenshotToolbar x:Name="Toolbar"
+                                    Visibility="Collapsed" />
+        </Canvas>
     </Grid>
 </Window>

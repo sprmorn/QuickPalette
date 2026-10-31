@@ -52,6 +52,10 @@ public partial class OverlayWindow : Window
     private Point _dragStart;
     private bool _dragging;
 
+    // 智能框选候选：按下时暂存，抬起未拖拽才算"单击选中"（拖拽始终是手动框选）
+    private bool _smartCandidatePending;
+    private Rect _pendingSmartRect;
+
     // 当前工具
     private string _tool = "Rectangle";
     private RgbaColor _color;
@@ -326,12 +330,16 @@ public partial class OverlayWindow : Window
 
         if (!_hasSelection)
         {
-            // 智能框选命中：单击直接选中候选窗口
+            // 智能框选候选：先暂存，抬手时按"单击/拖拽"分流（拖拽=手动框选，单击=选中候选）
             if (_config.SmartSelectEnabled && SmartRect.Visibility == Visibility.Visible)
             {
-                SelectRect(new Rect(
+                _pendingSmartRect = new Rect(
                     Canvas.GetLeft(SmartRect), Canvas.GetTop(SmartRect),
-                    SmartRect.Width, SmartRect.Height));
+                    SmartRect.Width, SmartRect.Height);
+                _smartCandidatePending = true;
+                _dragging = true;
+                _dragStart = pos;
+                CaptureMouse();
                 return;
             }
 
@@ -361,7 +369,27 @@ public partial class OverlayWindow : Window
             ReleaseMouseCapture();
 
             var pos = e.GetPosition(this);
-            if (Math.Abs(pos.X - _dragStart.X) > 4 || Math.Abs(pos.Y - _dragStart.Y) > 4)
+            var moved = Math.Abs(pos.X - _dragStart.X) > 4 || Math.Abs(pos.Y - _dragStart.Y) > 4;
+
+            if (_smartCandidatePending)
+            {
+                _smartCandidatePending = false;
+                if (moved)
+                {
+                    // 拖拽 = 手动框选（忽略智能候选）
+                    UpdateSelectionFromDrag(pos);
+                    CommitSelection();
+                }
+                else
+                {
+                    // 单击 = 选中悬停高亮的候选窗口
+                    SelectRect(_pendingSmartRect);
+                }
+
+                return;
+            }
+
+            if (moved)
             {
                 UpdateSelectionFromDrag(pos);
                 CommitSelection();
@@ -377,6 +405,8 @@ public partial class OverlayWindow : Window
 
     private void UpdateSelectionFromDrag(Point pos)
     {
+        SmartRect.Visibility = Visibility.Collapsed; // 手动框选中，不再显示智能高亮
+
         var x = Math.Min(_dragStart.X, pos.X);
         var y = Math.Min(_dragStart.Y, pos.Y);
         var w = Math.Abs(pos.X - _dragStart.X);
@@ -558,6 +588,10 @@ public partial class OverlayWindow : Window
         Toolbar.Visibility = Visibility.Visible;
         Toolbar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         var size = Toolbar.DesiredSize;
+        if (size.Width < 1 || size.Height < 1)
+        {
+            size = new Size(460, 80); // 未完成测量时的兜底尺寸（防定位算出 NaN/越界）
+        }
 
         var x = Math.Max(0, Math.Min(_selection.Right - size.Width, Width - size.Width));
         var y = _selection.Bottom + 8;
