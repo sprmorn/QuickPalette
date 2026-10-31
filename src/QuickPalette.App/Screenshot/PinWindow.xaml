@@ -1,0 +1,21 @@
+<Window x:Class="QuickPalette.App.Screenshot.PinWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="钉图"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseWheel="Window_MouseWheel"
+        MouseRightButtonUp="Window_MouseRightButtonUp"
+        MouseDoubleClick="Window_MouseDoubleClick">
+    <Border BorderBrush="#88000000"
+            BorderThickness="1"
+            CornerRadius="2">
+        <Image x:Name="PinImage" Stretch="None" />
+    </Border>
+</Window>

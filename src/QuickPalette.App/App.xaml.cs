@@ -29,6 +29,12 @@ public partial class App : System.Windows.Application
     private EventBus? _eventBus;
     private ILogger? _logger;
     private HotkeyService? _hotkeyService;
+
+    /// <summary>截图模块（覆盖层/钉图编排，独立于搜索核心）</summary>
+    private ScreenshotService? _screenshotService;
+
+    /// <summary>截图全局热键（独立实例：与主唤起热键互不影响、互不回滚）</summary>
+    private HotkeyService? _screenshotHotkeyService;
     private ForegroundWindowTracker? _foregroundTracker;
     private JsonRepository? _repository;
     private LauncherManager? _launcherManager;
@@ -145,6 +151,7 @@ public partial class App : System.Windows.Application
                 () => _mainWindow?.ShowPalette(),
                 () => ShowAddApp(),
                 CaptureCurrentWindow,
+                () => _screenshotService?.StartCapture(),
                 ShowSettings,
                 ExitApplication);
             _trayService.SetTheme(settings.Theme);
@@ -175,6 +182,26 @@ public partial class App : System.Windows.Application
                     UiText.T("app.hotkey.conflict.title"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
+            }
+
+            // 12b. 截图服务 + 截图全局热键（独立实例，失败不阻塞启动）
+            _screenshotService = new ScreenshotService(_logger, settings);
+            try
+            {
+                _screenshotHotkeyService = new HotkeyService(_logger);
+                if (!_screenshotHotkeyService.TryRegisterHotkey(settings.ScreenshotHotkey, OnScreenshotHotkeyPressed, out var snapError))
+                {
+                    _logger.Warning("Screenshot hotkey failed: {Hotkey} ({Error})，可在设置·截图中更换",
+                        settings.ScreenshotHotkey, snapError);
+                }
+                else
+                {
+                    _logger.Information("Screenshot hotkey registered: {Hotkey}", settings.ScreenshotHotkey);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Screenshot hotkey init failed (continuing without screenshot hotkey)");
             }
 
             if (degraded)
@@ -332,6 +359,7 @@ public partial class App : System.Windows.Application
         SwitchTheme = SwitchTheme,
         BackupNow = BackupNow,
         CaptureCurrentWindow = CaptureCurrentWindow,
+        TakeScreenshot = () => _screenshotService?.StartCapture(),
         IsPreviewEnabled = () => _previewEnabled,
         IsDeepSeekSearchEnabled = () => _deepSeekSearchEnabled
     };
@@ -541,6 +569,10 @@ public partial class App : System.Windows.Application
             _previewEnabled = updated.PreviewEnabled;
             _deepSeekSearchEnabled = updated.DeepSeekSearchEnabled;
 
+            // 截图模块热更新（设置 + 截图热键）
+            _screenshotService?.UpdateSettings(updated);
+            UpdateScreenshotHotkey(updated.ScreenshotHotkey);
+
             // 重新加载应用列表
             _mainWindow?.RefreshApps();
         }
@@ -604,6 +636,31 @@ public partial class App : System.Windows.Application
     }
 
     /// <summary>托盘"退出"：真正关闭主窗口（绕过 Closing 拦截）后退出</summary>
+    /// <summary>截图热键触发（Alt+D 或设置中的自定义键）</summary>
+    private void OnScreenshotHotkeyPressed() => _screenshotService?.StartCapture();
+
+    /// <summary>设置页修改截图热键后重注册（失败保留旧热键并提示）</summary>
+    private void UpdateScreenshotHotkey(string hotkey)
+    {
+        try
+        {
+            _screenshotHotkeyService ??= new HotkeyService(_logger!);
+            if (!_screenshotHotkeyService.TryRegisterHotkey(hotkey, OnScreenshotHotkeyPressed, out var error))
+            {
+                _logger?.Warning("Screenshot hotkey change failed: {Hotkey} ({Error})", hotkey, error);
+                MessageBox.Show(
+                    $"{string.Format(UiText.T("app.hotkey.conflict"), hotkey)}\n{error}",
+                    UiText.T("app.hotkey.conflict.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Screenshot hotkey update failed");
+        }
+    }
+
     private void ExitApplication()
     {
         try
@@ -680,6 +737,8 @@ public partial class App : System.Windows.Application
 
         _fileSearchManager?.Dispose();
         _hotkeyService?.Dispose();
+        _screenshotHotkeyService?.Dispose();
+        _screenshotService?.Dispose();
         _foregroundTracker?.Dispose();
         _trayService?.Dispose();
         _instanceLock?.Dispose();

@@ -1,0 +1,118 @@
+<UserControl x:Class="QuickPalette.App.Screenshot.ScreenshotToolbar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent">
+    <UserControl.Resources>
+        <Style x:Key="ToolButton" TargetType="RadioButton">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd"
+                                Background="Transparent"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF4C8DFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="#F22B3446"
+            CornerRadius="10"
+            Padding="8,6">
+        <StackPanel>
+            <!-- 第一行：工具 + 动作 -->
+            <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="ToolSelect" Style="{StaticResource ToolButton}" Content="⬚" ToolTip="选择（V）" Checked="Tool_Checked" Tag="Select"/>
+                <RadioButton x:Name="ToolRect" Style="{StaticResource ToolButton}" Content="▭" ToolTip="矩形（R）" Checked="Tool_Checked" Tag="Rectangle"/>
+                <RadioButton x:Name="ToolEllipse" Style="{StaticResource ToolButton}" Content="◯" ToolTip="椭圆（O）" Checked="Tool_Checked" Tag="Ellipse"/>
+                <RadioButton x:Name="ToolArrow" Style="{StaticResource ToolButton}" Content="➜" ToolTip="箭头（A）" Checked="Tool_Checked" Tag="Arrow"/>
+                <RadioButton x:Name="ToolBrush" Style="{StaticResource ToolButton}" Content="✎" ToolTip="画笔（P）" Checked="Tool_Checked" Tag="Brush"/>
+                <RadioButton x:Name="ToolHighlight" Style="{StaticResource ToolButton}" Content="🖍" ToolTip="荧光笔（H）" Checked="Tool_Checked" Tag="Highlight"/>
+                <RadioButton x:Name="ToolText" Style="{StaticResource ToolButton}" Content="T" ToolTip="文字（T）" Checked="Tool_Checked" Tag="Text"/>
+                <RadioButton x:Name="ToolMosaic" Style="{StaticResource ToolButton}" Content="▦" ToolTip="马赛克（M）" Checked="Tool_Checked" Tag="Mosaic"/>
+                <RadioButton x:Name="ToolEraser" Style="{StaticResource ToolButton}" Content="⌫" ToolTip="橡皮擦·删除标注对象（E）" Checked="Tool_Checked" Tag="Eraser"/>
+
+                <Border Width="1" Background="#44FFFFFF" Margin="6,4"/>
+
+                <Button x:Name="UndoButton" Style="{StaticResource ActionButton}" Content="↶" ToolTip="撤销（Ctrl+Z）" Click="Undo_Click"/>
+                <Button x:Name="RedoButton" Style="{StaticResource ActionButton}" Content="↷" ToolTip="重做（Ctrl+Y）" Click="Redo_Click"/>
+
+                <Border Width="1" Background="#44FFFFFF" Margin="6,4"/>
+
+                <Button Style="{StaticResource ActionButton}" Content="⧉" ToolTip="复制（Ctrl+C）" Click="Copy_Click"/>
+                <Button Style="{StaticResource ActionButton}" Content="💾" ToolTip="保存（Ctrl+S）" Click="Save_Click"/>
+                <Button Style="{StaticResource ActionButton}" Content="📌" ToolTip="钉图（Ctrl+D）" Click="Pin_Click"/>
+                <Button Style="{StaticResource ActionButton}" Content="✕" ToolTip="退出（Esc）" Click="Exit_Click"/>
+            </StackPanel>
+
+            <!-- 第二行：色板 + 粗细 -->
+            <StackPanel Orientation="Horizontal" Margin="2,6,2,0">
+                <TextBlock Text="颜色" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,6,0"/>
+                <ItemsControl x:Name="Palette">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="20" Height="20" CornerRadius="10" Margin="3,0"
+                                    Background="{Binding Brush}"
+                                    BorderBrush="#66FFFFFF" BorderThickness="1"
+                                    Cursor="Hand" MouseLeftButtonDown="Swatch_Click"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Border Width="1" Background="#44FFFFFF" Margin="8,2"/>
+
+                <TextBlock Text="粗细" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,6,0"/>
+                <Slider x:Name="WidthSlider" Width="110" Minimum="1" Maximum="24" Value="3"
+                        VerticalAlignment="Center" ValueChanged="WidthSlider_Changed"/>
+                <TextBlock x:Name="WidthText" Text="3" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

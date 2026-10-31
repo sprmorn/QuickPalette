@@ -1,0 +1,113 @@
+<Window x:Class="QuickPalette.App.Screenshot.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:QuickPalette.App.Screenshot"
+        Title="截图"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual"
+        Cursor="Cross"
+        KeyDown="Window_KeyDown"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp"
+        MouseMove="Window_MouseMove"
+        MouseDown="Window_MouseDown"
+        MouseRightButtonUp="Window_MouseRightButtonUp">
+
+    <Grid x:Name="Root">
+        <!-- 截屏底图 -->
+        <Image x:Name="BaseImage" Stretch="Fill" />
+
+        <!-- 半透明遮罩：选区处挖洞 -->
+        <Path x:Name="DimMask" Fill="#90000000" IsHitTestVisible="False">
+            <Path.Data>
+                <CombinedGeometry GeometryCombineMode="Exclude">
+                    <CombinedGeometry.Geometry1>
+                        <RectangleGeometry x:Name="FullRect" />
+                    </CombinedGeometry.Geometry1>
+                    <CombinedGeometry.Geometry2>
+                        <RectangleGeometry x:Name="HoleRect" />
+                    </CombinedGeometry.Geometry2>
+                </CombinedGeometry>
+            </Path.Data>
+        </Path>
+
+        <!-- 智能框选高亮（光标下候选窗口） -->
+        <Rectangle x:Name="SmartRect"
+                   Stroke="#FF4C8DFF"
+                   StrokeThickness="2"
+                   Fill="#224C8DFF"
+                   Visibility="Collapsed"
+                   IsHitTestVisible="False" />
+
+        <!-- 标注画布（限于选区内，随选区移动/裁剪） -->
+        <Canvas x:Name="AnnotationCanvas"
+                Visibility="Collapsed"
+                ClipToBounds="True"
+                IsHitTestVisible="False" />
+
+        <!-- 选区边框 -->
+        <Rectangle x:Name="SelectionBorder"
+                   Stroke="#FF4C8DFF"
+                   StrokeThickness="1"
+                   Visibility="Collapsed"
+                   IsHitTestVisible="False" />
+
+        <!-- 选区尺寸标签 -->
+        <Border x:Name="SizeBadge"
+                Background="#DD1F2937"
+                CornerRadius="4"
+                Padding="8,4"
+                Visibility="Collapsed"
+                IsHitTestVisible="False">
+            <TextBlock x:Name="SizeText"
+                       Foreground="White"
+                       FontSize="12" />
+        </Border>
+
+        <!-- 文字标注输入框 -->
+        <TextBox x:Name="TextInput"
+                 Visibility="Collapsed"
+                 Background="#CC1F2937"
+                 Foreground="White"
+                 BorderBrush="#FF4C8DFF"
+                 Padding="4,2"
+                 FontSize="16"
+                 AcceptsReturn="False"
+                 KeyDown="TextInput_KeyDown"
+                 LostKeyboardFocus="TextInput_LostFocus" />
+
+        <!-- 取色浮层：放大镜 + 颜色值 -->
+        <Canvas x:Name="PickerLayer" IsHitTestVisible="False">
+            <Border x:Name="PickerBadge"
+                    Background="#E61F2937"
+                    CornerRadius="6"
+                    Padding="10,8"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <Border Width="88" Height="88" CornerRadius="4" ClipToBounds="True">
+                        <Image x:Name="MagnifierImage" Stretch="UniformToFill" />
+                    </Border>
+                    <Border x:Name="PickerSwatch" Height="18" CornerRadius="3" Margin="0,6,0,2" />
+                    <TextBlock x:Name="PickerText"
+                               Foreground="White"
+                               FontSize="12"
+                               FontFamily="Consolas" />
+                </StackPanel>
+            </Border>
+            <Ellipse x:Name="PickerCursor"
+                     Width="14" Height="14"
+                     Stroke="White"
+                     StrokeThickness="1.5"
+                     Visibility="Collapsed" />
+        </Canvas>
+
+        <!-- 工具栏 -->
+        <local:ScreenshotToolbar x:Name="Toolbar"
+                                Visibility="Collapsed" />
+    </Grid>
+</Window>

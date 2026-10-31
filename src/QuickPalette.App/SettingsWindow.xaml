@@ -357,6 +357,132 @@
                     </ScrollViewer>
                 </TabItem>
 
+                <!-- 截图设置 Tab -->
+                <TabItem x:Name="TabScreenshotItem" Header="📷 截图">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="20">
+                            <TextBlock x:Name="ScreenshotSectionTitle"
+                                       Text="截图"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       FontSize="16"
+                                       FontWeight="Medium"
+                                       Margin="0,0,0,20"/>
+
+                            <!-- 快捷键 -->
+                            <Border Background="{DynamicResource BgCard}"
+                                    CornerRadius="8"
+                                    Padding="15"
+                                    Margin="0,0,0,15">
+                                <StackPanel>
+                                    <TextBlock x:Name="ScreenshotHotkeyTitle"
+                                               Text="截图快捷键"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Margin="0,0,0,10"/>
+                                    <TextBox x:Name="ScreenshotHotkeyBox"
+                                             Style="{StaticResource InputStyle}"
+                                             Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="ScreenshotHotkeyHint"
+                                               Foreground="{DynamicResource TextDim2}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 行为与标注默认值 -->
+                            <Border Background="{DynamicResource BgCard}"
+                                    CornerRadius="8"
+                                    Padding="15"
+                                    Margin="0,0,0,15">
+                                <StackPanel>
+                                    <TextBlock x:Name="ScreenshotBehaviorTitle"
+                                               Text="行为"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Margin="0,0,0,10"/>
+                                    <CheckBox x:Name="ScreenshotSmartCheckBox"
+                                              Content="智能框选窗口（悬停高亮候选，单击选中）"
+                                              Margin="0,0,0,12"/>
+
+                                    <TextBlock x:Name="ScreenshotDefaultToolTitle"
+                                               Text="默认标注工具"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ScreenshotToolBox" Margin="0,0,0,12"/>
+
+                                    <TextBlock x:Name="ScreenshotColorFormatTitle"
+                                               Text="取色器格式"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="ScreenshotFormatBox" Margin="0,0,0,12"/>
+
+                                    <TextBlock x:Name="ScreenshotMosaicTitle"
+                                               Text="马赛克粒度"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <Slider x:Name="ScreenshotMosaicSlider"
+                                            Minimum="4"
+                                            Maximum="48"
+                                            TickFrequency="2"
+                                            IsSnapToTickEnabled="True"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 输出 -->
+                            <Border Background="{DynamicResource BgCard}"
+                                    CornerRadius="8"
+                                    Padding="15">
+                                <StackPanel>
+                                    <TextBlock x:Name="ScreenshotOutputTitle"
+                                               Text="输出"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="ScreenshotSaveDirTitle"
+                                               Text="保存目录"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <DockPanel Margin="0,0,0,6">
+                                        <Button x:Name="ScreenshotBrowseButton"
+                                                Content="浏览…"
+                                                Click="ScreenshotBrowse_Click"
+                                                DockPanel.Dock="Right"
+                                                Padding="10,4"/>
+                                        <TextBox x:Name="ScreenshotSaveDirBox"
+                                                 Style="{StaticResource InputStyle}"
+                                                 Margin="0,0,8,0"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="ScreenshotSaveDirHint"
+                                               Foreground="{DynamicResource TextDim2}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,10"/>
+
+                                    <TextBlock x:Name="ScreenshotTemplateTitle"
+                                               Text="文件命名模板"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox x:Name="ScreenshotTemplateBox"
+                                             Style="{StaticResource InputStyle}"
+                                             Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="ScreenshotTemplateHint"
+                                               Foreground="{DynamicResource TextDim2}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
                 <!-- 通用设置 Tab -->
                 <TabItem x:Name="TabGeneralItem" Header="⚙ 通用">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">

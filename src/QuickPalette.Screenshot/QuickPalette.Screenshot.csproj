@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>QuickPalette.Screenshot</RootNamespace>
+    <Description>截图模块核心：捕获、标注对象模型、命令栈、智能框选、输出（零 UI 依赖，可单测）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+    <PackageReference Include="Serilog" Version="4.4.0" />
+  </ItemGroup>
+
+</Project>

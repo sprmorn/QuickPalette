@@ -15,6 +15,7 @@ public class TrayService : IDisposable
     private readonly Action _showPalette;
     private readonly Action _showAddApp;
     private readonly Action _captureCurrentWindow;
+    private readonly Action _takeScreenshot;
     private readonly Action _showSettings;
     private readonly Action _exitApp;
 
@@ -26,6 +27,7 @@ public class TrayService : IDisposable
         Action showPalette,
         Action showAddApp,
         Action captureCurrentWindow,
+        Action takeScreenshot,
         Action showSettings,
         Action exitApp)
     {
@@ -33,6 +35,7 @@ public class TrayService : IDisposable
         _showPalette = showPalette;
         _showAddApp = showAddApp;
         _captureCurrentWindow = captureCurrentWindow;
+        _takeScreenshot = takeScreenshot;
         _showSettings = showSettings;
         _exitApp = exitApp;
 
@@ -101,6 +104,11 @@ public class TrayService : IDisposable
         var captureItem = new ToolStripMenuItem(UiText.T("tray.capture"));
         captureItem.Click += (s, e) => _captureCurrentWindow();
         menu.Items.Add(captureItem);
+
+        // 截图（Alt+D 全局热键的兜底入口）
+        var screenshotItem = new ToolStripMenuItem(UiText.T("tray.screenshot"));
+        screenshotItem.Click += (s, e) => _takeScreenshot();
+        menu.Items.Add(screenshotItem);
 
         menu.Items.Add(new ToolStripSeparator());
 

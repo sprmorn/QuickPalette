@@ -129,6 +129,7 @@ public partial class SettingsWindow : Window
 
         TabAppsItem.Header = UiText.T("Settings.TabApps");
         TabHotkeyItem.Header = UiText.T("Settings.TabHotkey");
+        TabScreenshotItem.Header = UiText.T("Settings.TabScreenshot");
         TabGeneralItem.Header = UiText.T("Settings.TabGeneral");
         TabFiltersItem.Header = UiText.T("Settings.TabFilters");
         TabBackupItem.Header = UiText.T("Settings.TabBackup");
@@ -166,6 +167,21 @@ public partial class SettingsWindow : Window
         ResetDesc.Text = UiText.T("Settings.ResetDesc");
         ResetButton.Content = UiText.T("Settings.ResetButton");
 
+        // 截图
+        ScreenshotSectionTitle.Text = UiText.T("Settings.ScreenshotSection");
+        ScreenshotHotkeyTitle.Text = UiText.T("Settings.ScreenshotHotkey");
+        ScreenshotHotkeyHint.Text = UiText.T("Settings.ScreenshotHotkeyHint");
+        ScreenshotSmartCheckBox.Content = UiText.T("Settings.ScreenshotSmartSelect");
+        ScreenshotDefaultToolTitle.Text = UiText.T("Settings.ScreenshotDefaultTool");
+        ScreenshotColorFormatTitle.Text = UiText.T("Settings.ScreenshotColorFormat");
+        ScreenshotMosaicTitle.Text = UiText.T("Settings.ScreenshotMosaicGranularity");
+        ScreenshotSaveDirTitle.Text = UiText.T("Settings.ScreenshotSaveDir");
+        ScreenshotSaveDirHint.Text = UiText.T("Settings.ScreenshotSaveDirHint");
+        ScreenshotBrowseButton.Content = UiText.T("Settings.ScreenshotBrowse");
+        ScreenshotTemplateTitle.Text = UiText.T("Settings.ScreenshotFileNameTemplate");
+        ScreenshotTemplateHint.Text = UiText.T("Settings.ScreenshotFileNameTemplateHint");
+        FillScreenshotCombos();
+
         FiltersTitle.Text = UiText.T("Settings.FiltersSection");
         FiltersDesc.Text = UiText.T("Settings.FiltersDesc");
         FilterSystemComponentsCheckBox.Content = UiText.T("Settings.FilterSystemComponents");
@@ -199,6 +215,14 @@ public partial class SettingsWindow : Window
             // 热键
             HotkeyRecorder.Hotkey = _settings.Hotkey;
             HotkeyRecorder.RegisteredHotkey = _originalHotkey;
+
+            // 截图
+            ScreenshotHotkeyBox.Text = _settings.ScreenshotHotkey;
+            ScreenshotSmartCheckBox.IsChecked = _settings.ScreenshotSmartSelect;
+            ScreenshotSaveDirBox.Text = _settings.ScreenshotSaveDir;
+            ScreenshotTemplateBox.Text = _settings.ScreenshotFileNameTemplate;
+            ScreenshotMosaicSlider.Value = Math.Clamp(_settings.ScreenshotMosaicGranularity, 4, 48);
+            FillScreenshotCombos();
 
             // 主题单选回显
             var theme = _settings.Theme?.Trim().ToLowerInvariant();
@@ -836,6 +860,19 @@ public partial class SettingsWindow : Window
             _settings.Hotkey = HotkeyRecorder.Hotkey;
             _settings.Theme = GetSelectedTheme();
 
+            // 截图
+            _settings.ScreenshotHotkey = string.IsNullOrWhiteSpace(ScreenshotHotkeyBox.Text)
+                ? "Alt+D"
+                : ScreenshotHotkeyBox.Text.Trim();
+            _settings.ScreenshotSmartSelect = ScreenshotSmartCheckBox.IsChecked == true;
+            _settings.ScreenshotSaveDir = ScreenshotSaveDirBox.Text.Trim();
+            _settings.ScreenshotFileNameTemplate = string.IsNullOrWhiteSpace(ScreenshotTemplateBox.Text)
+                ? QuickPalette.Screenshot.Output.FileNameTemplate.DefaultTemplate
+                : ScreenshotTemplateBox.Text.Trim();
+            _settings.ScreenshotDefaultTool = (ScreenshotToolBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "rect";
+            _settings.ScreenshotColorFormat = (ScreenshotFormatBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "hex";
+            _settings.ScreenshotMosaicGranularity = (int)ScreenshotMosaicSlider.Value;
+
             // 热键一致性：保存时统一注册 _settings.Hotkey；
             // 注册失败则中止保存（避免运行注册与 settings.json 不一致）
             if (!_hotkeyService.RegisterHotkey(_settings.Hotkey, _onHotkeyPressed))
@@ -872,6 +909,70 @@ public partial class SettingsWindow : Window
     {
         DialogResult = false;
         Close();
+    }
+
+    /// <summary>重建截图下拉项（保持当前选择；文案随语言）</summary>
+    private void FillScreenshotCombos()
+    {
+        var tools = new (string Value, string Key)[]
+        {
+            ("rect", "Settings.Screenshot.Tool.Rectangle"),
+            ("ellipse", "Settings.Screenshot.Tool.Ellipse"),
+            ("arrow", "Settings.Screenshot.Tool.Arrow"),
+            ("brush", "Settings.Screenshot.Tool.Brush"),
+            ("highlight", "Settings.Screenshot.Tool.Highlight"),
+            ("text", "Settings.Screenshot.Tool.Text"),
+            ("mosaic", "Settings.Screenshot.Tool.Mosaic")
+        };
+        var currentTool = (ScreenshotToolBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.ScreenshotDefaultTool;
+        ScreenshotToolBox.Items.Clear();
+        foreach (var (value, key) in tools)
+        {
+            var item = new ComboBoxItem { Content = UiText.T(key), Tag = value };
+            ScreenshotToolBox.Items.Add(item);
+            if (value == currentTool)
+            {
+                item.IsSelected = true;
+            }
+        }
+
+        var formats = new (string Value, string Label)[]
+        {
+            ("hex", "HEX  #FF8800"),
+            ("rgb", "RGB  rgb(255, 136, 0)"),
+            ("hsl", "HSL  hsl(32, 100%, 50%)")
+        };
+        var currentFormat = (ScreenshotFormatBox.SelectedItem as ComboBoxItem)?.Tag as string ?? _settings.ScreenshotColorFormat;
+        ScreenshotFormatBox.Items.Clear();
+        foreach (var (value, label) in formats)
+        {
+            var item = new ComboBoxItem { Content = label, Tag = value };
+            ScreenshotFormatBox.Items.Add(item);
+            if (value == currentFormat)
+            {
+                item.IsSelected = true;
+            }
+        }
+    }
+
+    /// <summary>浏览截图保存目录（系统文件夹选择对话框）</summary>
+    private void ScreenshotBrowse_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = UiText.T("Settings.ScreenshotSaveDir")
+            };
+            if (dialog.ShowDialog(this) == true)
+            {
+                ScreenshotSaveDirBox.Text = dialog.FolderName;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Browse screenshot folder failed");
+        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

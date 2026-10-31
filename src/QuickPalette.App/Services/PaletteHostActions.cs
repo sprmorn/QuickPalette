@@ -26,6 +26,9 @@ public sealed class PaletteHostActions
     /// <summary>捕获当前前台窗口进程并预填入库</summary>
     public required Action CaptureCurrentWindow { get; init; }
 
+    /// <summary>打开截图覆盖层（Alt+D / &gt;snap / 托盘入口）</summary>
+    public required Action TakeScreenshot { get; init; }
+
     /// <summary>文档预览开关是否启用（设置中可关闭；关闭后单击文档仅选中）</summary>
     public required Func<bool> IsPreviewEnabled { get; init; }
 

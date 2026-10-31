@@ -103,6 +103,29 @@ public class Settings
     /// </summary>
     public string Locale { get; set; } = "zh-CN";
 
+    // ================= 截图插件 =================
+
+    /// <summary>截图全局快捷键（默认 Alt+D，冲突检测见 HotkeyService.TryRegisterHotkey）</summary>
+    public string ScreenshotHotkey { get; set; } = "Alt+D";
+
+    /// <summary>智能框选窗口（光标下高亮候选，单击选中）</summary>
+    public bool ScreenshotSmartSelect { get; set; } = true;
+
+    /// <summary>截图保存目录（空 = 我的图片\轻启截图）</summary>
+    public string ScreenshotSaveDir { get; set; } = string.Empty;
+
+    /// <summary>文件命名模板（yyyy/MM/dd/HH/mm/ss 占位符）</summary>
+    public string ScreenshotFileNameTemplate { get; set; } = "截图_yyyyMMdd_HHmmss";
+
+    /// <summary>默认标注工具（rect/ellipse/arrow/brush/highlight/text/mosaic）</summary>
+    public string ScreenshotDefaultTool { get; set; } = "rect";
+
+    /// <summary>取色器主格式（hex/rgb/hsl）</summary>
+    public string ScreenshotColorFormat { get; set; } = "hex";
+
+    /// <summary>马赛克粒度（像素块大小）</summary>
+    public int ScreenshotMosaicGranularity { get; set; } = 12;
+
     /// <summary>
     /// Schema 版本号
     /// </summary>

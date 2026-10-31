@@ -906,6 +906,12 @@ public partial class MainWindow : Window
             },
             new()
             {
+                Name = "snap", Usage = ">snap",
+                Description = UiText.T("main.cmd.snap"),
+                Execute = _ => _host.TakeScreenshot()
+            },
+            new()
+            {
                 Name = "refresh", Usage = ">refresh",
                 Description = UiText.T("main.cmd.refresh"),
                 Execute = _ => RunRefreshCommand(),
