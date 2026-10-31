@@ -74,6 +74,11 @@ public partial class ScreenshotToolbar : UserControl
         };
         target.IsChecked = true;
         SetSliderMode(tag == "Text");
+
+        // 属性栏（颜色/粗细/字号）只在绘制类工具时显示；选择/橡皮擦不需要
+        StylePanel.Visibility = tag is "Select" or "Eraser"
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     /// <summary>滑条语义切换：文字工具=字号（12-72），其余=粗细（1-24）</summary>

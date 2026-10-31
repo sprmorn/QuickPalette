@@ -56,6 +56,21 @@ public partial class OverlayWindow : Window
     private bool _smartCandidatePending;
     private Rect _pendingSmartRect;
 
+    // 选择态交互（拖动/缩放选区）
+    private enum SelectDragMode
+    {
+        None,
+        Move,
+        Resize
+    }
+
+    private SelectDragMode _selectMode;
+    private int _resizeHandle = -1;
+    private Rect _selectStart;
+
+    /// <summary>选区调整手柄：0=左上 1=上 2=右上 3=右 4=右下 5=下 6=左下 7=左</summary>
+    private readonly System.Windows.Shapes.Rectangle[] _handles = new System.Windows.Shapes.Rectangle[8];
+
     // 当前工具
     private string _tool = "Rectangle";
     private RgbaColor _color;
@@ -90,7 +105,30 @@ public partial class OverlayWindow : Window
         SourceInitialized += (_, _) => PositionPixelPerfect();
         Loaded += (_, _) => Keyboard.Focus(this);
 
+        CreateHandles();
         WireToolbar();
+    }
+
+    /// <summary>创建 8 个选区调整手柄（四角 + 四边中点），叠在定位层最上方</summary>
+    private void CreateHandles()
+    {
+        for (var i = 0; i < _handles.Length; i++)
+        {
+            var handle = new System.Windows.Shapes.Rectangle
+            {
+                Width = 8,
+                Height = 8,
+                RadiusX = 1.5,
+                RadiusY = 1.5,
+                Fill = Brushes.White,
+                Stroke = new SolidColorBrush(Color.FromRgb(76, 141, 255)),
+                StrokeThickness = 1.5,
+                Visibility = Visibility.Collapsed,
+                IsHitTestVisible = false
+            };
+            _handles[i] = handle;
+            LayoutCanvas.Children.Add(handle);
+        }
     }
 
     /// <summary>装填本次捕获并复用窗口（覆盖层缓存：只隐藏不销毁）</summary>
@@ -170,6 +208,8 @@ public partial class OverlayWindow : Window
     {
         _tool = tag;
         Toolbar.SetTool(tag);
+        Cursor = Cursors.Cross;
+        UpdateHandles();
     }
 
     #region 撤销 / 重做 / 结果输出
@@ -218,6 +258,7 @@ public partial class OverlayWindow : Window
             var element = BuildElement(annotation);
             if (element != null)
             {
+                ShiftForExport(element); // 窗口坐标 → 选区局部坐标
                 canvas.Children.Add(element);
             }
         }
@@ -313,6 +354,12 @@ public partial class OverlayWindow : Window
     {
         var pos = e.GetPosition(this);
 
+        if (_selectMode != SelectDragMode.None)
+        {
+            UpdateSelectionManipulation(pos);
+            return;
+        }
+
         if (_dragging)
         {
             UpdateSelectionFromDrag(pos);
@@ -334,6 +381,20 @@ public partial class OverlayWindow : Window
         if (!_hasSelection && _config.SmartSelectEnabled)
         {
             UpdateSmartRect(pos);
+        }
+
+        // 选择态光标反馈：手柄=缩放箭头，选区内=移动
+        if (_hasSelection && _tool == "Select")
+        {
+            var handle = HitTestHandle(pos);
+            Cursor = handle switch
+            {
+                0 or 4 => Cursors.SizeNWSE,
+                2 or 6 => Cursors.SizeNESW,
+                1 or 5 => Cursors.SizeNS,
+                3 or 7 => Cursors.SizeWE,
+                _ => _selection.Contains(pos) ? Cursors.SizeAll : Cursor
+            };
         }
 
         // 取色器：空闲移动时实时采样（放大镜 + HEX/RGB/HSL）
@@ -372,7 +433,33 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        // 已有选区：选区外拖拽 = 重新框选；选区内按工具绘制
+        // 已有选区
+        if (_tool == "Select")
+        {
+            // 手柄 → 缩放选区
+            var handle = HitTestHandle(pos);
+            if (handle >= 0)
+            {
+                _selectMode = SelectDragMode.Resize;
+                _resizeHandle = handle;
+                _selectStart = _selection;
+                _dragStart = pos;
+                CaptureMouse();
+                return;
+            }
+
+            // 选区内 → 拖动选区
+            if (_selection.Contains(pos))
+            {
+                _selectMode = SelectDragMode.Move;
+                _selectStart = _selection;
+                _dragStart = pos;
+                CaptureMouse();
+                return;
+            }
+        }
+
+        // 选区外拖拽 = 重新框选
         if (!_selection.Contains(pos))
         {
             _dragging = true;
@@ -428,10 +515,111 @@ public partial class OverlayWindow : Window
             return;
         }
 
+        if (_selectMode != SelectDragMode.None)
+        {
+            _selectMode = SelectDragMode.None;
+            _resizeHandle = -1;
+            ReleaseMouseCapture();
+            return;
+        }
+
         EndToolAction();
     }
 
     private void Window_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => Exit();
+
+    /// <summary>选择态拖拽：拖动 = 平移选区；手柄 = 缩放选区（对角锚定，窗口内钳制）</summary>
+    private void UpdateSelectionManipulation(Point pos)
+    {
+        var dx = pos.X - _dragStart.X;
+        var dy = pos.Y - _dragStart.Y;
+
+        if (_selectMode == SelectDragMode.Move)
+        {
+            var x = Math.Clamp(_selectStart.X + dx, 0, Math.Max(0, Width - _selectStart.Width));
+            var y = Math.Clamp(_selectStart.Y + dy, 0, Math.Max(0, Height - _selectStart.Height));
+            ShowSelectionRect(new Rect(x, y, _selectStart.Width, _selectStart.Height));
+            return;
+        }
+
+        double left = _selectStart.Left, top = _selectStart.Top, right = _selectStart.Right, bottom = _selectStart.Bottom;
+        switch (_resizeHandle)
+        {
+            case 0: left += dx; top += dy; break;
+            case 1: top += dy; break;
+            case 2: right += dx; top += dy; break;
+            case 3: right += dx; break;
+            case 4: right += dx; bottom += dy; break;
+            case 5: bottom += dy; break;
+            case 6: left += dx; bottom += dy; break;
+            case 7: left += dx; break;
+        }
+
+        // 最小 8 DIP（对角锚定），再钳制在窗口内
+        if (right - left < 8)
+        {
+            if (_resizeHandle is 0 or 6 or 7) left = right - 8; else right = left + 8;
+        }
+
+        if (bottom - top < 8)
+        {
+            if (_resizeHandle is 0 or 1 or 2) top = bottom - 8; else bottom = top + 8;
+        }
+
+        left = Math.Clamp(left, 0, Width);
+        top = Math.Clamp(top, 0, Height);
+        right = Math.Clamp(right, 0, Width);
+        bottom = Math.Clamp(bottom, 0, Height);
+
+        ShowSelectionRect(new Rect(left, top, right - left, bottom - top));
+    }
+
+    /// <summary>手柄位置（0=左上 1=上 2=右上 3=右 4=右下 5=下 6=左下 7=左）</summary>
+    private Point HandlePosition(int index) => index switch
+    {
+        0 => new Point(_selection.Left, _selection.Top),
+        1 => new Point(_selection.Left + _selection.Width / 2, _selection.Top),
+        2 => new Point(_selection.Right, _selection.Top),
+        3 => new Point(_selection.Right, _selection.Top + _selection.Height / 2),
+        4 => new Point(_selection.Right, _selection.Bottom),
+        5 => new Point(_selection.Left + _selection.Width / 2, _selection.Bottom),
+        6 => new Point(_selection.Left, _selection.Bottom),
+        _ => new Point(_selection.Left, _selection.Top + _selection.Height / 2)
+    };
+
+    /// <summary>命中手柄（容差 6 DIP），返回 0..7 或 -1</summary>
+    private int HitTestHandle(Point pos)
+    {
+        for (var i = 0; i < _handles.Length; i++)
+        {
+            var h = HandlePosition(i);
+            if (Math.Abs(pos.X - h.X) <= 6 && Math.Abs(pos.Y - h.Y) <= 6)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>手柄显隐与定位（仅选择态 + 有选区时显示）</summary>
+    private void UpdateHandles()
+    {
+        var visible = _hasSelection && _tool == "Select";
+        for (var i = 0; i < _handles.Length; i++)
+        {
+            var handle = _handles[i];
+            handle.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            if (!visible)
+            {
+                continue;
+            }
+
+            var p = HandlePosition(i);
+            Canvas.SetLeft(handle, p.X - 4);
+            Canvas.SetTop(handle, p.Y - 4);
+        }
+    }
 
     private void UpdateSelectionFromDrag(Point pos)
     {
@@ -453,21 +641,20 @@ public partial class OverlayWindow : Window
         }
 
         _hasSelection = true;
-        _doc = new AnnotationDocument((float)_selection.Width, (float)_selection.Height);
-        _stack.Clear();
         SmartRect.Visibility = Visibility.Collapsed;
 
-        // 标注画布铺到选区
-        Canvas.SetLeft(AnnotationCanvas, _selection.X);
-        Canvas.SetTop(AnnotationCanvas, _selection.Y);
-        AnnotationCanvas.Width = _selection.Width;
-        AnnotationCanvas.Height = _selection.Height;
+        // 标注画布铺满窗口、裁剪到选区（标注锚定图像：移动/缩放选区不丢标注）
+        AnnotationCanvas.Clip = new RectangleGeometry(_selection);
         AnnotationCanvas.Visibility = Visibility.Visible;
         SyncCanvas();
         RefreshHistoryState();
 
+        // 默认选择状态：框内拖动移动选区、手柄调大小、选区外重新框选；绘制需先选工具
+        SetTool("Select");
+
         // 工具栏置于选区下方（越界翻到上方）
         PositionToolbar();
+        UpdateHandles();
     }
 
     private void SelectRect(Rect rect)
@@ -493,12 +680,15 @@ public partial class OverlayWindow : Window
         SelectionBorder.Visibility = _hasSelection ? Visibility.Visible : Visibility.Collapsed;
 
         HoleRect.Rect = rect;
+        AnnotationCanvas.Clip = new RectangleGeometry(rect);
 
         SizeBadge.Visibility = _hasSelection ? Visibility.Visible : Visibility.Collapsed;
         SizeText.Text = string.Create(CultureInfo.InvariantCulture,
             $"{(int)Math.Round(rect.Width * _scale)} × {(int)Math.Round(rect.Height * _scale)}");
         Canvas.SetLeft(SizeBadge, rect.X);
         Canvas.SetTop(SizeBadge, Math.Max(0, rect.Y - 30));
+
+        UpdateHandles();
     }
 
     private void UpdateSmartRect(Point pos)
@@ -663,11 +853,6 @@ public partial class OverlayWindow : Window
             case "Text":
                 BeginText(pos);
                 return;
-            case "Select":
-                _dragging = true;
-                _dragStart = pos;
-                CaptureMouse();
-                return;
         }
 
         var kind = _tool switch
@@ -706,8 +891,7 @@ public partial class OverlayWindow : Window
         }
         else
         {
-            _drawing.Frame = new System.Drawing.RectangleF(
-                (float)(pos.X - _selection.X), (float)(pos.Y - _selection.Y), 0, 0);
+            _drawing.Frame = new System.Drawing.RectangleF((float)pos.X, (float)pos.Y, 0, 0);
         }
 
         CaptureMouse(); // 拖出窗口仍跟手
@@ -779,8 +963,8 @@ public partial class OverlayWindow : Window
         else
         {
             // 始终以按下瞬间的起点为对角基准（反向拖拽也不会漂移）
-            var sx = (float)(_drawingStart.X - _selection.X);
-            var sy = (float)(_drawingStart.Y - _selection.Y);
+            var sx = (float)_drawingStart.X;
+            var sy = (float)_drawingStart.Y;
             var frame = System.Drawing.RectangleF.FromLTRB(
                 Math.Min(sx, local.X), Math.Min(sy, local.Y),
                 Math.Max(sx, local.X), Math.Max(sy, local.Y));
@@ -844,8 +1028,12 @@ public partial class OverlayWindow : Window
     private static double Distance(System.Drawing.PointF a, System.Drawing.PointF b)
         => Math.Sqrt((a.X - b.X) * (double)(a.X - b.X) + (a.Y - b.Y) * (double)(a.Y - b.Y));
 
+    /// <summary>
+    /// 窗口坐标 → 文档坐标：标注锚定于图像（窗口坐标系，移动/缩放选区不丢标注），
+    /// 导出时再平移到选区局部坐标。
+    /// </summary>
     private System.Drawing.PointF ToDoc(Point windowPos)
-        => new((float)(windowPos.X - _selection.X), (float)(windowPos.Y - _selection.Y));
+        => new((float)windowPos.X, (float)windowPos.Y);
 
     /// <summary>文档 → 画布元素（展示与导出共用）</summary>
     private UIElement? BuildElement(AnnotationObject annotation)
@@ -920,7 +1108,8 @@ public partial class OverlayWindow : Window
 
             case AnnotationKind.Mosaic:
             {
-                var crop = CropBase(ToWindowRect(annotation.Frame));
+                var crop = CropBase(new Rect(annotation.Frame.X, annotation.Frame.Y,
+                    annotation.Frame.Width, annotation.Frame.Height));
                 if (crop == null)
                 {
                     return null;
@@ -944,6 +1133,35 @@ public partial class OverlayWindow : Window
 
             default:
                 return null;
+        }
+    }
+
+    /// <summary>把窗口坐标系的元素平移到选区局部坐标（导出合成用）</summary>
+    private void ShiftForExport(UIElement element)
+    {
+        if (element is Polyline polyline)
+        {
+            var shifted = new PointCollection();
+            foreach (var p in polyline.Points)
+            {
+                shifted.Add(new Point(p.X - _selection.X, p.Y - _selection.Y));
+            }
+
+            polyline.Points = shifted;
+        }
+        else
+        {
+            var x = Canvas.GetLeft(element);
+            if (!double.IsNaN(x))
+            {
+                Canvas.SetLeft(element, x - _selection.X);
+            }
+
+            var y = Canvas.GetTop(element);
+            if (!double.IsNaN(y))
+            {
+                Canvas.SetTop(element, y - _selection.Y);
+            }
         }
     }
 
@@ -1005,10 +1223,6 @@ public partial class OverlayWindow : Window
         cropped.Freeze();
         return cropped;
     }
-
-    /// <summary>文档坐标矩形 → 窗口坐标矩形（换算选区原点）</summary>
-    private Rect ToWindowRect(System.Drawing.RectangleF frame)
-        => new(_selection.X + frame.X, _selection.Y + frame.Y, frame.Width, frame.Height);
 
     /// <summary>重建标注画布内容</summary>
     private void SyncCanvas()
@@ -1085,8 +1299,7 @@ public partial class OverlayWindow : Window
             Kind = AnnotationKind.Text,
             Text = text,
             Style = new AnnotationStyle { Color = _color, FontSize = (int)_fontSize },
-            Frame = new System.Drawing.RectangleF(
-                (float)(pos.X - _selection.X), (float)(pos.Y - _selection.Y), 240, (float)_fontSize + 8)
+            Frame = new System.Drawing.RectangleF((float)pos.X, (float)pos.Y, 240, (float)_fontSize + 8)
         };
         _stack.Execute(new AddAnnotationCommand(annotation, _doc.Annotations.Count), _doc);
         SyncCanvas();
@@ -1166,6 +1379,8 @@ public partial class OverlayWindow : Window
         _selection = new Rect();
         _dragging = false;
         _erasing = false;
+        _selectMode = SelectDragMode.None;
+        _resizeHandle = -1;
         _drawing = null;
         _doc = new AnnotationDocument((float)Width, (float)Height);
         _stack.Clear();
@@ -1179,6 +1394,7 @@ public partial class OverlayWindow : Window
         Toolbar.Visibility = Visibility.Collapsed;
         HoleRect.Rect = Rect.Empty;
         ToolTip = null;
+        UpdateHandles();
     }
 
     /// <summary>捕获位图 → 冻结 BitmapSource（不经 HBitmap，无泄漏）</summary>

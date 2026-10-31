@@ -87,8 +87,8 @@
                 <Button Style="{StaticResource ActionButton}" Content="✕" ToolTip="退出（Esc）" Click="Exit_Click"/>
             </StackPanel>
 
-            <!-- 第二行：色板 + 粗细 -->
-            <StackPanel Orientation="Horizontal" Margin="2,6,2,0">
+            <!-- 第二行：色板 + 粗细（仅绘制类工具显示） -->
+            <StackPanel x:Name="StylePanel" Orientation="Horizontal" Margin="2,6,2,0">
                 <TextBlock Text="颜色" Foreground="#CCFFFFFF" FontSize="11" VerticalAlignment="Center" Margin="4,0,6,0"/>
                 <ItemsControl x:Name="Palette">
                     <ItemsControl.ItemsPanel>
