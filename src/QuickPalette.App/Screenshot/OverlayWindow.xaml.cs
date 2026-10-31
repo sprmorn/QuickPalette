@@ -644,6 +644,8 @@ public partial class OverlayWindow : Window
         SmartRect.Visibility = Visibility.Collapsed;
 
         // 标注画布铺满窗口、裁剪到选区（标注锚定图像：移动/缩放选区不丢标注）
+        AnnotationCanvas.Width = Width;
+        AnnotationCanvas.Height = Height;
         AnnotationCanvas.Clip = new RectangleGeometry(_selection);
         AnnotationCanvas.Visibility = Visibility.Visible;
         SyncCanvas();

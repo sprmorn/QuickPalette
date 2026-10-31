@@ -47,10 +47,10 @@
                        Visibility="Collapsed"
                        IsHitTestVisible="False" />
 
-            <!-- 标注画布（限于选区内，随选区移动/裁剪） -->
+            <!-- 标注画布（铺满窗口，按选区几何裁剪；不能开 ClipToBounds——
+                 Canvas 无显式宽高时布局尺寸为 0，会把所有标注裁掉） -->
             <Canvas x:Name="AnnotationCanvas"
                     Visibility="Collapsed"
-                    ClipToBounds="True"
                     IsHitTestVisible="False" />
 
             <!-- 选区边框 -->
