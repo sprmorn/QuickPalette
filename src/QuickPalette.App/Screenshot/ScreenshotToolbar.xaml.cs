@@ -45,6 +45,24 @@ public partial class ScreenshotToolbar : UserControl
         _loading = true;
         InitializeComponent();
 
+        // 矢量图标（svg/ 目录资源；着色跟随按钮前景色）
+        ToolSelect.Content = ToolbarIcons.Create("select");
+        ToolRect.Content = ToolbarIcons.Create("rect");
+        ToolEllipse.Content = ToolbarIcons.Create("ellipse");
+        ToolArrow.Content = ToolbarIcons.Create("arrow");
+        ToolBrush.Content = ToolbarIcons.Create("brush");
+        ToolHighlight.Content = ToolbarIcons.Create("highlight");
+        ToolText.Content = ToolbarIcons.Create("text");
+        ToolMosaic.Content = ToolbarIcons.Create("mosaic");
+        ToolEraser.Content = ToolbarIcons.Create("eraser");
+        UndoButton.Content = ToolbarIcons.Create("undo");
+        RedoButton.Content = ToolbarIcons.Create("redo");
+        LongButton.Content = ToolbarIcons.Create("long");
+        CopyButton.Content = ToolbarIcons.Create("copy");
+        SaveButton.Content = ToolbarIcons.Create("save");
+        PinButton.Content = ToolbarIcons.Create("pin");
+        ExitButton.Content = ToolbarIcons.Create("exit");
+
         // 工具栏拖动移动（按钮自身消费点击，不会触发拖动）
         MouseLeftButtonDown += Toolbar_MouseLeftButtonDown;
         MouseMove += Toolbar_MouseMove;

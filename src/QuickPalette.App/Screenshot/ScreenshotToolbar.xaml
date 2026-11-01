@@ -63,30 +63,30 @@
             Padding="8,6"
             Cursor="SizeAll">
         <StackPanel>
-            <!-- 第一行：工具 + 动作 -->
+            <!-- 第一行：工具 + 动作（图标由 ToolbarIcons 矢量渲染） -->
             <StackPanel Orientation="Horizontal">
-                <RadioButton x:Name="ToolSelect" Style="{StaticResource ToolButton}" Content="⬚" ToolTip="选择（V）" Checked="Tool_Checked" Tag="Select"/>
-                <RadioButton x:Name="ToolRect" Style="{StaticResource ToolButton}" Content="▭" ToolTip="矩形（R）" Checked="Tool_Checked" Tag="Rectangle"/>
-                <RadioButton x:Name="ToolEllipse" Style="{StaticResource ToolButton}" Content="◯" ToolTip="椭圆（O）" Checked="Tool_Checked" Tag="Ellipse"/>
-                <RadioButton x:Name="ToolArrow" Style="{StaticResource ToolButton}" Content="➜" ToolTip="箭头（A）" Checked="Tool_Checked" Tag="Arrow"/>
-                <RadioButton x:Name="ToolBrush" Style="{StaticResource ToolButton}" Content="✎" ToolTip="画笔（P）" Checked="Tool_Checked" Tag="Brush"/>
-                <RadioButton x:Name="ToolHighlight" Style="{StaticResource ToolButton}" Content="🖍" ToolTip="荧光笔（H）" Checked="Tool_Checked" Tag="Highlight"/>
-                <RadioButton x:Name="ToolText" Style="{StaticResource ToolButton}" Content="T" ToolTip="文字（T）" Checked="Tool_Checked" Tag="Text"/>
-                <RadioButton x:Name="ToolMosaic" Style="{StaticResource ToolButton}" Content="▦" ToolTip="马赛克（M）" Checked="Tool_Checked" Tag="Mosaic"/>
-                <RadioButton x:Name="ToolEraser" Style="{StaticResource ToolButton}" Content="⌫" ToolTip="橡皮擦·删除标注对象（E）" Checked="Tool_Checked" Tag="Eraser"/>
+                <RadioButton x:Name="ToolSelect" Style="{StaticResource ToolButton}" ToolTip="选择（V）" Checked="Tool_Checked" Tag="Select"/>
+                <RadioButton x:Name="ToolRect" Style="{StaticResource ToolButton}" ToolTip="矩形（R）" Checked="Tool_Checked" Tag="Rectangle"/>
+                <RadioButton x:Name="ToolEllipse" Style="{StaticResource ToolButton}" ToolTip="椭圆（O）" Checked="Tool_Checked" Tag="Ellipse"/>
+                <RadioButton x:Name="ToolArrow" Style="{StaticResource ToolButton}" ToolTip="箭头（A）" Checked="Tool_Checked" Tag="Arrow"/>
+                <RadioButton x:Name="ToolBrush" Style="{StaticResource ToolButton}" ToolTip="画笔（P）" Checked="Tool_Checked" Tag="Brush"/>
+                <RadioButton x:Name="ToolHighlight" Style="{StaticResource ToolButton}" ToolTip="荧光笔（H）" Checked="Tool_Checked" Tag="Highlight"/>
+                <RadioButton x:Name="ToolText" Style="{StaticResource ToolButton}" ToolTip="文字（T）" Checked="Tool_Checked" Tag="Text"/>
+                <RadioButton x:Name="ToolMosaic" Style="{StaticResource ToolButton}" ToolTip="马赛克（M）" Checked="Tool_Checked" Tag="Mosaic"/>
+                <RadioButton x:Name="ToolEraser" Style="{StaticResource ToolButton}" ToolTip="橡皮擦·删除标注对象（E）" Checked="Tool_Checked" Tag="Eraser"/>
 
                 <Border Width="1" Background="#44FFFFFF" Margin="6,4"/>
 
-                <Button x:Name="UndoButton" Style="{StaticResource ActionButton}" Content="↶" ToolTip="撤销（Ctrl+Z）" Click="Undo_Click"/>
-                <Button x:Name="RedoButton" Style="{StaticResource ActionButton}" Content="↷" ToolTip="重做（Ctrl+Y）" Click="Redo_Click"/>
+                <Button x:Name="UndoButton" Style="{StaticResource ActionButton}" ToolTip="撤销（Ctrl+Z）" Click="Undo_Click"/>
+                <Button x:Name="RedoButton" Style="{StaticResource ActionButton}" ToolTip="重做（Ctrl+Y）" Click="Redo_Click"/>
 
                 <Border Width="1" Background="#44FFFFFF" Margin="6,4"/>
 
-                <Button Style="{StaticResource ActionButton}" Content="⧉" ToolTip="复制（Ctrl+C）" Click="Copy_Click"/>
-                <Button Style="{StaticResource ActionButton}" Content="💾" ToolTip="保存并复制（Ctrl+S）" Click="Save_Click"/>
-                <Button Style="{StaticResource ActionButton}" Content="📌" ToolTip="钉图（Ctrl+D）" Click="Pin_Click"/>
-                <Button Style="{StaticResource ActionButton}" Content="⤓" ToolTip="长截图（选区滚动拼接）" Click="LongCapture_Click"/>
-                <Button Style="{StaticResource ActionButton}" Content="✕" ToolTip="退出（Esc）" Click="Exit_Click"/>
+                <Button x:Name="LongButton" Style="{StaticResource ActionButton}" ToolTip="长截图（选区滚动拼接）" Click="LongCapture_Click"/>
+                <Button x:Name="CopyButton" Style="{StaticResource ActionButton}" ToolTip="复制（Ctrl+C）" Click="Copy_Click"/>
+                <Button x:Name="SaveButton" Style="{StaticResource ActionButton}" ToolTip="保存并复制（Ctrl+S）" Click="Save_Click"/>
+                <Button x:Name="PinButton" Style="{StaticResource ActionButton}" ToolTip="钉图（Ctrl+D）" Click="Pin_Click"/>
+                <Button x:Name="ExitButton" Style="{StaticResource ActionButton}" ToolTip="退出（Esc）" Click="Exit_Click"/>
             </StackPanel>
 
             <!-- 第二行：色板 + 粗细（仅绘制类工具显示） -->
