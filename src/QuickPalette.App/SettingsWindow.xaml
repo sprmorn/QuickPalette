@@ -895,6 +895,55 @@
                     </StackPanel>
                     </ScrollViewer>
                 </TabItem>
+
+                <TabItem x:Name="TabAboutItem" Header="🎀 关于">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="20" HorizontalAlignment="Center">
+                            <Image x:Name="AboutImage"
+                                   Source="Assets/about.png"
+                                   MaxWidth="260"
+                                   Margin="0,20,0,16"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                            <TextBlock Text="春晨制品"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       FontSize="22"
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,6"/>
+
+                            <TextBlock x:Name="AboutProductName"
+                                       Text="轻启 QuickPalette · 轻量 Windows 快捷启动器"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       FontSize="13"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,10"/>
+
+                            <TextBlock x:Name="AboutVersionText"
+                                       Text="版本 1.7.0"
+                                       Foreground="{DynamicResource TextDim2}"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,16"/>
+
+                            <TextBlock HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource TextDim2}"
+                                       FontSize="12">
+                                <Hyperlink x:Name="AboutGithubLink"
+                                           Click="AboutGithub_Click"
+                                           Foreground="{DynamicResource AccentTextBrush}">
+                                    https://github.com/sprmorn/QuickPalette
+                                </Hyperlink>
+                            </TextBlock>
+
+                            <TextBlock Text="感谢每一位使用者 ❤"
+                                       Foreground="{DynamicResource TextDim2}"
+                                       FontSize="11"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,14,0,24"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
             </TabControl>
 
             <!-- 底部按钮 -->

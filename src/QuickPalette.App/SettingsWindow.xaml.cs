@@ -1,6 +1,7 @@
 namespace QuickPalette.App;
 
 using System.Diagnostics;
+using System.Reflection;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -61,6 +62,12 @@ public partial class SettingsWindow : Window
         Action onHotkeyPressed, FileSearchManager? fileSearchManager = null, Action? onAppsImported = null)
     {
         InitializeComponent();
+
+        // 关于页版本号跟随程序集版本（打包时由 publish.ps1 注入）
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        AboutVersionText.Text = version == null
+            ? "版本 1.7.0"
+            : $"版本 {version.Major}.{version.Minor}.{version.Build}";
 
         _repository = repository;
         _logger = logger;
@@ -708,6 +715,19 @@ public partial class SettingsWindow : Window
         {
             _logger.Error(ex, "Open data directory failed");
             MessageBox.Show(ex.Message, UiText.T("Common.Error"), MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>关于页：打开 GitHub 仓库</summary>
+    private void AboutGithub_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://github.com/sprmorn/QuickPalette") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Open GitHub link failed");
         }
     }
 
