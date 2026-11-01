@@ -86,15 +86,66 @@ public partial class PinWindow : Window
         }
     }
 
+    /// <summary>中键：复制钉图到剪贴板</summary>
+    private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Middle)
+        {
+            CopyToClipboard();
+        }
+    }
+
+    /// <summary>Ctrl+C：复制钉图到剪贴板</summary>
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            CopyToClipboard();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>滚轮：以光标为锚点缩放（位置随当前窗口，不回原位）</summary>
     private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
     {
+        var oldZoom = _zoom;
         _zoom = Math.Clamp(_zoom + (e.Delta > 0 ? 0.1 : -0.1), 0.2, 5.0);
-        ApplyGeometry(); // 缩放 = 改窗口物理尺寸（内容铺满，比例始终精确）
+        if (Math.Abs(_zoom - oldZoom) < 0.0001)
+        {
+            return;
+        }
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var rect))
+        {
+            return;
+        }
+
+        // 以光标为锚点：光标下的像素点缩放前后保持不动
+        var cursor = GetCursorPos(out var p)
+            ? new System.Drawing.Point(p.X, p.Y)
+            : new System.Drawing.Point(rect.Left, rect.Top);
+        var ratio = _zoom / oldZoom;
+        var w = Math.Max(1, (int)Math.Round(_pixelWidth * _zoom));
+        var h = Math.Max(1, (int)Math.Round(_pixelHeight * _zoom));
+        var x = (int)Math.Round(cursor.X - (cursor.X - rect.Left) * ratio);
+        var y = (int)Math.Round(cursor.Y - (cursor.Y - rect.Top) * ratio);
+
+        // 钳制在显示器内
+        var b = _monitor.PixelBounds;
+        x = Math.Clamp(x, b.Left, Math.Max(b.Left, b.Right - w));
+        y = Math.Clamp(y, b.Top, Math.Max(b.Top, b.Bottom - h));
+
+        SetWindowPos(hwnd, HwndTopmost, x, y, w, h, SwpShowWindow);
     }
 
     private void Window_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => Close();
 
-    private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    /// <summary>双击：关闭钉图</summary>
+    private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e) => Close();
+
+    /// <summary>复制钉图到剪贴板（中键 / Ctrl+C）</summary>
+    private void CopyToClipboard()
     {
         try
         {
@@ -112,4 +163,21 @@ public partial class PinWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, int hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out NativeRect lpRect);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out System.Drawing.Point lpPoint);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 }

@@ -9,9 +9,11 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseDown="Window_MouseDown"
         MouseWheel="Window_MouseWheel"
         MouseRightButtonUp="Window_MouseRightButtonUp"
-        MouseDoubleClick="Window_MouseDoubleClick">
+        MouseDoubleClick="Window_MouseDoubleClick"
+        KeyDown="Window_KeyDown">
     <Border BorderBrush="#88000000"
             BorderThickness="1"
             CornerRadius="2">
