@@ -60,7 +60,8 @@
 
     <Border Background="#F22B3446"
             CornerRadius="10"
-            Padding="8,6">
+            Padding="8,6"
+            Cursor="SizeAll">
         <StackPanel>
             <!-- 第一行：工具 + 动作 -->
             <StackPanel Orientation="Horizontal">

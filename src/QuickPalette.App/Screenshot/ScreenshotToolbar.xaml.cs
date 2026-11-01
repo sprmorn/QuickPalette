@@ -44,6 +44,11 @@ public partial class ScreenshotToolbar : UserControl
         _loading = true;
         InitializeComponent();
 
+        // 工具栏拖动移动（按钮自身消费点击，不会触发拖动）
+        MouseLeftButtonDown += Toolbar_MouseLeftButtonDown;
+        MouseMove += Toolbar_MouseMove;
+        MouseLeftButtonUp += Toolbar_MouseLeftButtonUp;
+
         Palette.ItemsSource = new[]
         {
             new SwatchItem(RgbaColor.Red),
@@ -157,7 +162,63 @@ public partial class ScreenshotToolbar : UserControl
         {
             ColorSelected?.Invoke(item.Color);
         }
+
+        e.Handled = true; // 不冒泡成工具栏拖动
     }
+
+    #region 工具栏拖动
+
+    private bool _draggingToolbar;
+    private Point _toolbarDragStart;
+    private double _toolbarStartLeft;
+    private double _toolbarStartTop;
+
+    /// <summary>坐标基准：父画布（静止）。用工具栏自身做基准会因它跟着动而只移动一半距离</summary>
+    private UIElement? ToolbarDragReference => Parent as UIElement ?? this;
+
+    /// <summary>工具栏空白处按下 → 开始拖动（按钮/滑条消费了各自的点击，不会到这）</summary>
+    private void Toolbar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _draggingToolbar = true;
+        _toolbarDragStart = e.GetPosition(ToolbarDragReference);
+        _toolbarStartLeft = double.IsNaN(Canvas.GetLeft(this)) ? 0 : Canvas.GetLeft(this);
+        _toolbarStartTop = double.IsNaN(Canvas.GetTop(this)) ? 0 : Canvas.GetTop(this);
+        CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void Toolbar_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_draggingToolbar)
+        {
+            return;
+        }
+
+        var pos = e.GetPosition(ToolbarDragReference);
+        var dx = pos.X - _toolbarDragStart.X;
+        var dy = pos.Y - _toolbarDragStart.Y;
+
+        // 钳制在覆盖层范围内
+        var parent = Parent as FrameworkElement;
+        var maxLeft = Math.Max(0, (parent?.ActualWidth ?? 0) - ActualWidth);
+        var maxTop = Math.Max(0, (parent?.ActualHeight ?? 0) - ActualHeight);
+        Canvas.SetLeft(this, Math.Clamp(_toolbarStartLeft + dx, 0, maxLeft));
+        Canvas.SetTop(this, Math.Clamp(_toolbarStartTop + dy, 0, maxTop));
+    }
+
+    private void Toolbar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_draggingToolbar)
+        {
+            return;
+        }
+
+        _draggingToolbar = false;
+        ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    #endregion
 
     private void WidthSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
