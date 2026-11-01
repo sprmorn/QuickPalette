@@ -6,13 +6,16 @@ using System.Runtime.InteropServices;
 
 /// <summary>
 /// 长截图帧对齐：检测两次捕获之间的垂直滚动量（像素）。
-/// 做法：把两帧降采样为灰度行特征，按"行平均亮度序列"做一维互相关，
-/// 找使重叠区差异最小的位移。滚动量 &lt; 阈值视为未滚动（跳过该帧，避免重复拼接）。
+/// 特征 = 每行分横向多段的平均亮度（行 × 列带），比纯行平均更能区分文字/图像行，
+/// 大幅降低文字页"对偏几行造成接缝重复"的概率。
 /// </summary>
 public static class FrameAligner
 {
     /// <summary>未滚动判定阈值（像素）：位移小于该值视为同一画面</summary>
     public const int MinScrollThreshold = 4;
+
+    /// <summary>行特征的横向分带数</summary>
+    private const int Bands = 8;
 
     /// <summary>
     /// 计算 newFrame 相对 prevFrame 的垂直滚动量（正数 = 内容上移 = 用户向下滚动）。
@@ -35,8 +38,8 @@ public static class FrameAligner
         return DetectScroll(prevRows, newRows, maxShift);
     }
 
-    /// <summary>行特征版本（纯逻辑，供单测）：profiles = 每行的平均亮度</summary>
-    public static int? DetectScroll(IReadOnlyList<double> prevRows, IReadOnlyList<double> newRows, int maxShift)
+    /// <summary>行特征版本（纯逻辑，供单测）：profiles = 每行的亮度特征（多列带）</summary>
+    public static int? DetectScroll(IReadOnlyList<double[]> prevRows, IReadOnlyList<double[]> newRows, int maxShift)
     {
         if (prevRows == null || newRows == null || prevRows.Count != newRows.Count || prevRows.Count < 8)
         {
@@ -47,7 +50,6 @@ public static class FrameAligner
         maxShift = Math.Clamp(maxShift, 1, h - 4);
 
         // 对每个候选位移 s：比较 prev[s..h) 与 new[0..h-s)（滚动 s 后两帧的重叠区）
-        // 差异 = 平均绝对差；要求重叠区足够大（≥ 1/4 帧高）
         var minOverlap = Math.Max(8, h / 4);
         var bestShift = 0;
         var bestScore = double.MaxValue;
@@ -65,14 +67,14 @@ public static class FrameAligner
             {
                 for (var y = 0; y < overlap; y++)
                 {
-                    diff += Math.Abs(prevRows[y + s] - newRows[y]);
+                    diff += RowDistance(prevRows[y + s], newRows[y]);
                 }
             }
             else
             {
                 for (var y = 0; y < overlap; y++)
                 {
-                    diff += Math.Abs(prevRows[y] - newRows[y - s]);
+                    diff += RowDistance(prevRows[y], newRows[y - s]);
                 }
             }
 
@@ -89,12 +91,37 @@ public static class FrameAligner
             return null;
         }
 
-        // 静止画面的行特征几乎一致（任意位移差异都小）：用"零位移是否最优"结合绝对差异兜底
         return Math.Abs(bestShift) < MinScrollThreshold ? 0 : bestShift;
     }
 
-    /// <summary>位图 → 每行平均亮度（灰度）</summary>
-    private static double[] RowProfiles(Bitmap bmp)
+    /// <summary>单行特征距离（各列带平均绝对差之和）</summary>
+    private static double RowDistance(double[] a, double[] b)
+    {
+        double d = 0;
+        for (var i = 0; i < a.Length && i < b.Length; i++)
+        {
+            d += Math.Abs(a[i] - b[i]);
+        }
+
+        return d;
+    }
+
+    /// <summary>兼容入口：单值行特征（等价于单列带）</summary>
+    public static int? DetectScroll(IReadOnlyList<double> prevRows, IReadOnlyList<double> newRows, int maxShift)
+    {
+        if (prevRows == null || newRows == null)
+        {
+            return null;
+        }
+
+        return DetectScroll(
+            prevRows.Select(v => new[] { v }).ToList(),
+            newRows.Select(v => new[] { v }).ToList(),
+            maxShift);
+    }
+
+    /// <summary>位图 → 每行的横向分带平均亮度（灰度）</summary>
+    private static double[][] RowProfiles(Bitmap bmp)
     {
         var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
         var data = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
@@ -103,19 +130,27 @@ public static class FrameAligner
             var bytes = new byte[data.Stride * data.Height];
             Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
 
-            var rows = new double[data.Height];
+            var rows = new double[data.Height][];
+            var bandWidth = Math.Max(1, data.Width / Bands);
             for (var y = 0; y < data.Height; y++)
             {
-                double sum = 0;
                 var row = y * data.Stride;
-                // 逐 4 像素采样足够表征滚动（求速度）
-                for (var x = 0; x < data.Width; x += 4)
+                var bandSums = new double[Bands];
+                var bandCounts = new double[Bands];
+                for (var x = 0; x < data.Width; x++)
                 {
                     var i = row + x * 4;
-                    sum += (bytes[i] * 0.114) + (bytes[i + 1] * 0.587) + (bytes[i + 2] * 0.299);
+                    var b = Math.Min(Bands - 1, x / bandWidth);
+                    bandSums[b] += (bytes[i] * 0.114) + (bytes[i + 1] * 0.587) + (bytes[i + 2] * 0.299);
+                    bandCounts[b]++;
                 }
 
-                rows[y] = sum / Math.Ceiling(data.Width / 4.0);
+                for (var b = 0; b < Bands; b++)
+                {
+                    bandSums[b] = bandCounts[b] > 0 ? bandSums[b] / bandCounts[b] : 0;
+                }
+
+                rows[y] = bandSums;
             }
 
             return rows;

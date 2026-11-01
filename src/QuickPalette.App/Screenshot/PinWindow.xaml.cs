@@ -1,5 +1,6 @@
 namespace QuickPalette.App.Screenshot;
 
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -144,12 +145,20 @@ public partial class PinWindow : Window
     /// <summary>双击：关闭钉图</summary>
     private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e) => Close();
 
-    /// <summary>复制钉图到剪贴板（中键 / Ctrl+C）</summary>
+    /// <summary>复制钉图到剪贴板（中键 / Ctrl+C）：CF_DIB + PNG 流双格式（兼容 QQ/微信）</summary>
     private void CopyToClipboard()
     {
         try
         {
-            Clipboard.SetImage(_image);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(_image));
+            var data = new DataObject();
+            data.SetImage(_image);
+            var stream = new MemoryStream();
+            encoder.Save(stream);
+            stream.Position = 0;
+            data.SetData("PNG", stream);
+            Clipboard.SetDataObject(data, true);
             _logger.Information("Pin copied to clipboard");
         }
         catch (Exception ex)

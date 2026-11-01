@@ -127,7 +127,8 @@ public sealed class ScreenshotService : IDisposable
                 return;
             }
 
-            HideAll();
+            // 覆盖层进入"遮罩模式"：选区外压暗、选区内透明透出实时内容、点击穿透（滚轮直达网页）
+            source.EnterLongCaptureMask();
 
             var session = new LongCaptureSession(_logger, region);
 
@@ -155,6 +156,8 @@ public sealed class ScreenshotService : IDisposable
                 window.Close();
                 _longSession = null;
                 _longWindow = null;
+                source.ExitLongCaptureMask();
+                source.Hide();
                 OpenEditor(img);
             };
             session.Cancelled += () =>
@@ -162,7 +165,8 @@ public sealed class ScreenshotService : IDisposable
                 window.Close();
                 _longSession = null;
                 _longWindow = null;
-                // 取消：恢复原覆盖层，继续刚才的选区操作
+                // 取消：退出遮罩模式、恢复原覆盖层，继续刚才的选区操作
+                source.ExitLongCaptureMask();
                 source.Show();
                 source.Activate();
                 _active = true;

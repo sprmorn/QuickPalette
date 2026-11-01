@@ -95,4 +95,39 @@ public class FrameAlignerTests
 
         Assert.Equal(220, shift);
     }
+
+    /// <summary>分带特征：行平均相同但左右结构不同的行（文字页常见）也能正确对齐</summary>
+    [Fact]
+    public void Band_Features_Distinguish_LookAlike_Rows()
+    {
+        var h = 300;
+        // 行特征：8 列带，横向波形随行移动（模拟文本/侧栏结构）
+        List<double[]> Make(int phase)
+        {
+            var rows = new List<double[]>(h);
+            for (var y = 0; y < h; y++)
+            {
+                var band = new double[8];
+                for (var b = 0; b < 8; b++)
+                {
+                    band[b] = 100 + 50 * Math.Sin((y + phase) * 0.13 + b * 0.9) + 25 * Math.Sin((y + phase) * 0.037 * (b + 1));
+                }
+
+                rows.Add(band);
+            }
+
+            return rows;
+        }
+
+        var prev = Make(0);
+        var scrolled = new List<double[]>(h);
+        for (var y = 0; y < h; y++)
+        {
+            scrolled.Add(y + 77 < h ? prev[y + 77] : Make(0)[y]);
+        }
+
+        var shift = FrameAligner.DetectScroll(prev, scrolled, 150);
+
+        Assert.Equal(77, shift);
+    }
 }

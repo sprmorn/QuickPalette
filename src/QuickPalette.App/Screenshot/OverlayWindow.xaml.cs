@@ -90,6 +90,9 @@ public partial class OverlayWindow : Window
     // 取色器当前采样色
     private RgbaColor _pickerColor = RgbaColor.White;
 
+    // 长截图遮罩模式：选区外压暗、选区内透明透出实时内容、窗口点击穿透
+    private bool _longCaptureMask;
+
     /// <summary>结果回调（由 ScreenshotService 处理剪贴板/文件/钉图）；钉图附带选区屏幕像素位置（钉回原位）</summary>
     public event Action<BitmapSource>? Copied;
     public event Action<BitmapSource>? Saved;
@@ -398,11 +401,15 @@ public partial class OverlayWindow : Window
         {
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(image));
+
+            // CF_DIB + PNG 流双格式：QQ/微信 等 IM 读 CF_DIB（byte[] 形式的 PNG 它们读不了，
+            // 会提示"图片不支持"）；PNG 流保留透明通道与原图质量
             var data = new System.Windows.DataObject();
-            using var ms = new MemoryStream();
-            encoder.Save(ms);
-            data.SetData(System.Windows.DataFormats.Bitmap, image);
-            data.SetData("PNG", ms.ToArray()); // 带 PNG 格式，保透明与质量
+            data.SetImage(image);
+            var stream = new MemoryStream();
+            encoder.Save(stream);
+            stream.Position = 0;
+            data.SetData("PNG", stream);
             Clipboard.SetDataObject(data, true);
             Copied?.Invoke(image);
         }
@@ -1512,6 +1519,64 @@ public partial class OverlayWindow : Window
         }
     }
 
+    /// <summary>
+    /// 长截图遮罩模式：隐藏底图与工具（选区洞透明 → 透出实时内容供滚动），
+    /// 保留压暗遮罩与选区边框；窗口整体点击穿透（滚轮/点击直达下方应用）。
+    /// </summary>
+    public void EnterLongCaptureMask()
+    {
+        _longCaptureMask = true;
+        BaseImage.Visibility = Visibility.Collapsed;
+        Toolbar.Visibility = Visibility.Collapsed;
+        SizeBadge.Visibility = Visibility.Collapsed;
+        TextInput.Visibility = Visibility.Collapsed;
+        AnnotationCanvas.Visibility = Visibility.Collapsed;
+        PickerBadge.Visibility = Visibility.Collapsed;
+        PickerCursor.Visibility = Visibility.Collapsed;
+        foreach (var handle in _handles)
+        {
+            handle.Visibility = Visibility.Collapsed;
+        }
+
+        SelectionBorder.Visibility = Visibility.Visible;
+        SetClickThrough(true);
+    }
+
+    /// <summary>退出长截图遮罩模式（恢复常规覆盖层内容与交互）</summary>
+    public void ExitLongCaptureMask()
+    {
+        _longCaptureMask = false;
+        SetClickThrough(false);
+        BaseImage.Visibility = Visibility.Visible;
+        if (_hasSelection)
+        {
+            SizeBadge.Visibility = Visibility.Visible;
+            AnnotationCanvas.Visibility = Visibility.Visible;
+            Toolbar.Visibility = Visibility.Visible;
+            UpdateHandles();
+        }
+    }
+
+    /// <summary>窗口点击穿透开关（长截图遮罩期让滚轮/点击直达下方应用）</summary>
+    private void SetClickThrough(bool enabled)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero)
+            {
+                return;
+            }
+
+            var ex = GetWindowLong(hwnd, GwlExstyle);
+            SetWindowLong(hwnd, GwlExstyle, enabled ? ex | WsExTransparent : ex & ~WsExTransparent);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Set click-through failed");
+        }
+    }
+
     /// <summary>重置到初始态（窗口复用前调用）</summary>
     public void ResetForReuse()
     {
@@ -1565,6 +1630,15 @@ public partial class OverlayWindow : Window
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    private const int GwlExstyle = -20;
+    private const int WsExTransparent = 0x20;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
