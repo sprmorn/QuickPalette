@@ -130,7 +130,6 @@ public sealed class ScreenshotService : IDisposable
             HideAll();
 
             var session = new LongCaptureSession(_logger, region);
-            _longSession = session;
 
             // 控制窗放选区右侧（放不下则左侧），DIP 坐标
             var monitors = ScreenCaptureService.GetMonitors();
@@ -146,6 +145,9 @@ public sealed class ScreenshotService : IDisposable
 
             var position = new Point(Math.Max(4, left), Math.Max(4, region.Top / scale));
             var window = new LongCaptureWindow(session, _logger, position);
+
+            // 窗口创建成功后才置会话状态；任何异常都清掉，避免"第二次点击无效"（守卫被残留状态卡死）
+            _longSession = session;
             _longWindow = window;
 
             session.Finished += img =>
@@ -173,6 +175,10 @@ public sealed class ScreenshotService : IDisposable
         catch (Exception ex)
         {
             _logger.Error(ex, "Start long capture failed");
+            // 清残留状态：否则第二次点击被守卫静默挡住（"点图标没反应"）
+            _longSession?.Dispose();
+            _longSession = null;
+            _longWindow = null;
         }
     }
 
