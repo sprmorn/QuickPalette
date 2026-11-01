@@ -2,6 +2,7 @@ namespace QuickPalette.App.Screenshot;
 
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using QuickPalette.App.Services;
 using Serilog;
@@ -27,6 +28,7 @@ public partial class LongCaptureWindow : Window
         session.Updated += img => Dispatcher.BeginInvoke(() => ShowPreview(img));
         StatusText.Text = "正在采集…… 滚动页面即可自动拼接";
         Loaded += (_, _) => Keyboard.Focus(this);
+        SourceInitialized += (_, _) => SetExcludedFromCapture();
 
         Closed += (_, _) => _logger.Information("Long capture window closed");
     }
@@ -69,4 +71,30 @@ public partial class LongCaptureWindow : Window
                 break;
         }
     }
+
+    /// <summary>
+    /// 窗口对截屏 API 隐形（WDA_EXCLUDEFROMCAPTURE）：长截图实时捕获时不把预览窗拍进长图；
+    /// GDI 截取下该窗口区域透出后面的真实内容（已实测 0 差异）。
+    /// </summary>
+    private void SetExcludedFromCapture()
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                SetWindowDisplayAffinity(hwnd, WdaExcludeFromCapture);
+            }
+        }
+        catch
+        {
+            // 排除失败不阻塞（最坏情况预览窗偶尔入镜）
+        }
+    }
+
+    private const uint WdaExcludeFromCapture = 0x11;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
 }
