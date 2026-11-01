@@ -1,0 +1,64 @@
+<Window x:Class="QuickPalette.App.Screenshot.LongCaptureWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="长截图"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        KeyDown="Window_KeyDown">
+    <Border Background="#F52B3446"
+            CornerRadius="12"
+            BorderBrush="#55FFFFFF"
+            BorderThickness="1"
+            Padding="14">
+        <StackPanel Width="340">
+            <TextBlock x:Name="TitleText"
+                       Text="长截图 · 请滚动页面"
+                       Foreground="White"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,4"/>
+            <TextBlock x:Name="StatusText"
+                       Text="正在采集…"
+                       Foreground="#CCFFFFFF"
+                       FontSize="11"
+                       Margin="0,0,0,8"/>
+
+            <!-- 实时预览：拼接中的长图（等比缩小，可滚动看全貌） -->
+            <Border Background="#33000000"
+                    CornerRadius="6"
+                    Height="360">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <Image x:Name="PreviewImage"
+                           Stretch="Uniform"
+                           Width="312"
+                           RenderOptions.BitmapScalingMode="LowQuality"/>
+                </ScrollViewer>
+            </Border>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,10,0,0">
+                <Button x:Name="CancelButton"
+                        Content="取消"
+                        Width="76"
+                        Height="30"
+                        Click="Cancel_Click"
+                        Style="{StaticResource SecondaryButtonStyle}"/>
+                <Button x:Name="FinishButton"
+                        Content="完成"
+                        Width="76"
+                        Height="30"
+                        Margin="8,0,0,0"
+                        Click="Finish_Click"
+                        Style="{StaticResource PrimaryButtonStyle}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

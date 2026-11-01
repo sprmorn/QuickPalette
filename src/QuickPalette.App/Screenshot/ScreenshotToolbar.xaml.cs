@@ -19,6 +19,7 @@ public partial class ScreenshotToolbar : UserControl
     public event Action? CopyRequested;
     public event Action? SaveRequested;
     public event Action? PinRequested;
+    public event Action? LongCaptureRequested;
     public event Action? ExitRequested;
     public event Action<RgbaColor>? ColorSelected;
 
@@ -243,6 +244,7 @@ public partial class ScreenshotToolbar : UserControl
     private void Copy_Click(object sender, RoutedEventArgs e) => CopyRequested?.Invoke();
     private void Save_Click(object sender, RoutedEventArgs e) => SaveRequested?.Invoke();
     private void Pin_Click(object sender, RoutedEventArgs e) => PinRequested?.Invoke();
+    private void LongCapture_Click(object sender, RoutedEventArgs e) => LongCaptureRequested?.Invoke();
     private void Exit_Click(object sender, RoutedEventArgs e) => ExitRequested?.Invoke();
 
     /// <summary>色板项（颜色 + 画刷）</summary>

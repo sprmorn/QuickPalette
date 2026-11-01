@@ -85,6 +85,7 @@
                 <Button Style="{StaticResource ActionButton}" Content="⧉" ToolTip="复制（Ctrl+C）" Click="Copy_Click"/>
                 <Button Style="{StaticResource ActionButton}" Content="💾" ToolTip="保存并复制（Ctrl+S）" Click="Save_Click"/>
                 <Button Style="{StaticResource ActionButton}" Content="📌" ToolTip="钉图（Ctrl+D）" Click="Pin_Click"/>
+                <Button Style="{StaticResource ActionButton}" Content="⤓" ToolTip="长截图（选区滚动拼接）" Click="LongCapture_Click"/>
                 <Button Style="{StaticResource ActionButton}" Content="✕" ToolTip="退出（Esc）" Click="Exit_Click"/>
             </StackPanel>
 

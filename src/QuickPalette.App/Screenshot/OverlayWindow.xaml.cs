@@ -45,6 +45,10 @@ public partial class OverlayWindow : Window
     private double _scale = 1.0;
     private OverlayConfig _config;
 
+    /// <summary>图像在窗口中的显示矩形与像素比例（普通模式=全窗×自身缩放；外部图像编辑=适配矩形）</summary>
+    private Rect _imageDisplayRect;
+    private double _imageScale = 1.0;
+
     private AnnotationDocument _doc;
 
     // 选区状态
@@ -90,6 +94,10 @@ public partial class OverlayWindow : Window
     public event Action<BitmapSource>? Copied;
     public event Action<BitmapSource>? Saved;
     public event Action<BitmapSource, System.Drawing.Rectangle>? Pinned;
+
+    /// <summary>请求长截图（携带选区屏幕像素矩形）；主覆盖层由服务隐藏，进入滚动采集</summary>
+    public event Action<System.Drawing.Rectangle>? LongCaptureRequested;
+
     public event Action? Exited;
 
     public OverlayWindow(ILogger logger)
@@ -207,6 +215,7 @@ public partial class OverlayWindow : Window
 
         _baseImage = ToFrozenBitmapSource(captured);
         BaseImage.Source = _baseImage;
+        BaseImage.Stretch = Stretch.Fill;
 
         // 覆盖整块显示器（DIP = 像素/scale；SourceInitialized 后用像素坐标再精确置位）
         Width = monitor.PixelBounds.Width / _scale;
@@ -214,12 +223,60 @@ public partial class OverlayWindow : Window
         Left = monitor.PixelBounds.Left / _scale;
         Top = monitor.PixelBounds.Top / _scale;
         FullRect.Rect = new Rect(0, 0, Width, Height);
+        _imageDisplayRect = new Rect(0, 0, Width, Height);
+        _imageScale = _scale;
         _doc = new AnnotationDocument((float)Width, (float)Height);
 
         ResetForReuse();
         Toolbar.SetTool(_tool);
 
         // 窗口句柄就绪后置位像素级覆盖；未就绪则等 SourceInitialized
+        if (new WindowInteropHelper(this).Handle != IntPtr.Zero)
+        {
+            PositionPixelPerfect();
+        }
+    }
+
+    /// <summary>
+    /// 外部图像编辑模式（长截图结果等）：整图适配显示、标注导出回原始分辨率。
+    /// 选区默认铺满图像；移动/缩放选区即裁剪。
+    /// </summary>
+    public void PrepareExternal(BitmapSource image, MonitorInfo monitor, OverlayConfig config)
+    {
+        _monitor = monitor;
+        _scale = monitor.ScaleX;
+        _config = config with { SmartSelectEnabled = false }; // 编辑图像，不做屏幕智能框选
+        _color = config.DefaultColor;
+        _width = config.DefaultWidth;
+        _fontSize = 24;
+        _tool = "Select";
+
+        _baseImage = image;
+        BaseImage.Source = image;
+        BaseImage.Stretch = Stretch.Uniform;
+
+        Width = monitor.PixelBounds.Width / _scale;
+        Height = monitor.PixelBounds.Height / _scale;
+        Left = monitor.PixelBounds.Left / _scale;
+        Top = monitor.PixelBounds.Top / _scale;
+        FullRect.Rect = new Rect(0, 0, Width, Height);
+
+        // 图像等比适配窗口：显示矩形 + 像素比例（导出时按此还原原始分辨率）
+        var k = Math.Min(Width / image.PixelWidth, Height / image.PixelHeight);
+        var dw = image.PixelWidth * k;
+        var dh = image.PixelHeight * k;
+        _imageDisplayRect = new Rect((Width - dw) / 2, (Height - dh) / 2, dw, dh);
+        _imageScale = image.PixelWidth / dw;
+
+        _doc = new AnnotationDocument((float)Width, (float)Height);
+        ResetForReuse();
+        Toolbar.SetTool(_tool);
+        SetTool(_tool);
+
+        // 选区默认铺满图像
+        ShowSelectionRect(_imageDisplayRect);
+        CommitSelection();
+
         if (new WindowInteropHelper(this).Handle != IntPtr.Zero)
         {
             PositionPixelPerfect();
@@ -249,6 +306,13 @@ public partial class OverlayWindow : Window
         Toolbar.CopyRequested += () => Finish(emit: Copy);
         Toolbar.SaveRequested += () => Finish(emit: SaveAndCopy);
         Toolbar.PinRequested += () => Finish(emit: Pin);
+        Toolbar.LongCaptureRequested += () =>
+        {
+            if (_hasSelection)
+            {
+                LongCaptureRequested?.Invoke(GetSelectionPixelBounds());
+            }
+        };
         Toolbar.ExitRequested += Exit;
         Toolbar.ColorSelected += c =>
         {
@@ -289,8 +353,8 @@ public partial class OverlayWindow : Window
     {
         var dipWidth = Math.Max(1, _selection.Width);
         var dipHeight = Math.Max(1, _selection.Height);
-        var pixelWidth = Math.Max(1, (int)Math.Round(dipWidth * _scale));
-        var pixelHeight = Math.Max(1, (int)Math.Round(dipHeight * _scale));
+        var pixelWidth = Math.Max(1, (int)Math.Round(dipWidth * _imageScale));
+        var pixelHeight = Math.Max(1, (int)Math.Round(dipHeight * _imageScale));
 
         var grid = new Grid { Width = dipWidth, Height = dipHeight };
 
@@ -322,7 +386,7 @@ public partial class OverlayWindow : Window
         grid.Arrange(new Rect(0, 0, dipWidth, dipHeight));
         grid.UpdateLayout();
 
-        var rtb = new RenderTargetBitmap(pixelWidth, pixelHeight, 96 * _scale, 96 * _scale, PixelFormats.Pbgra32);
+        var rtb = new RenderTargetBitmap(pixelWidth, pixelHeight, 96 * _imageScale, 96 * _imageScale, PixelFormats.Pbgra32);
         rtb.Render(grid);
         rtb.Freeze();
         return rtb;
@@ -747,7 +811,7 @@ public partial class OverlayWindow : Window
 
         SizeBadge.Visibility = _hasSelection ? Visibility.Visible : Visibility.Collapsed;
         SizeText.Text = string.Create(CultureInfo.InvariantCulture,
-            $"{(int)Math.Round(rect.Width * _scale)} × {(int)Math.Round(rect.Height * _scale)}");
+            $"{(int)Math.Round(rect.Width * _imageScale)} × {(int)Math.Round(rect.Height * _imageScale)}");
         Canvas.SetLeft(SizeBadge, rect.X);
         Canvas.SetTop(SizeBadge, Math.Max(0, rect.Y - 30));
 
@@ -789,8 +853,8 @@ public partial class OverlayWindow : Window
     {
         try
         {
-            var px = (int)Math.Round(pos.X * _scale);
-            var py = (int)Math.Round(pos.Y * _scale);
+            var px = (int)Math.Round((pos.X - _imageDisplayRect.X) * _imageScale);
+            var py = (int)Math.Round((pos.Y - _imageDisplayRect.Y) * _imageScale);
             if (px < 0 || py < 0 || px >= _baseImage.PixelWidth || py >= _baseImage.PixelHeight)
             {
                 PickerBadge.Visibility = Visibility.Collapsed;
@@ -1270,13 +1334,13 @@ public partial class OverlayWindow : Window
         return geometry;
     }
 
-    /// <summary>选区 DIP 矩形 → 底图像素裁剪框（越界钳制）</summary>
+    /// <summary>选区 DIP 矩形 → 底图像素裁剪框（按图像显示矩形换算，越界钳制）</summary>
     private CroppedBitmap? CropBase(Rect dipRect)
     {
-        var x = Math.Max(0, (int)Math.Round(dipRect.X * _scale));
-        var y = Math.Max(0, (int)Math.Round(dipRect.Y * _scale));
-        var w = Math.Min(_baseImage.PixelWidth - x, (int)Math.Round(dipRect.Width * _scale));
-        var h = Math.Min(_baseImage.PixelHeight - y, (int)Math.Round(dipRect.Height * _scale));
+        var x = Math.Max(0, (int)Math.Round((dipRect.X - _imageDisplayRect.X) * _imageScale));
+        var y = Math.Max(0, (int)Math.Round((dipRect.Y - _imageDisplayRect.Y) * _imageScale));
+        var w = Math.Min(_baseImage.PixelWidth - x, (int)Math.Round(dipRect.Width * _imageScale));
+        var h = Math.Min(_baseImage.PixelHeight - y, (int)Math.Round(dipRect.Height * _imageScale));
         if (w <= 0 || h <= 0)
         {
             return null;
@@ -1411,6 +1475,15 @@ public partial class OverlayWindow : Window
             case Key.Escape:
                 Exit();
                 e.Handled = true;
+                break;
+            case Key.L:
+                // 长截图（需已有选区）
+                if (_hasSelection)
+                {
+                    LongCaptureRequested?.Invoke(GetSelectionPixelBounds());
+                    e.Handled = true;
+                }
+
                 break;
             case Key.V: SetTool("Select"); break;
             case Key.R: SetTool("Rectangle"); break;

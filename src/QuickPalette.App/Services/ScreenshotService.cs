@@ -23,6 +23,9 @@ public sealed class ScreenshotService : IDisposable
     private Settings _settings;
     private bool _active;
 
+    private LongCaptureSession? _longSession;
+    private LongCaptureWindow? _longWindow;
+
     public ScreenshotService(ILogger logger, Settings settings)
     {
         _logger = logger;
@@ -52,13 +55,7 @@ public sealed class ScreenshotService : IDisposable
             var captures = ScreenCaptureService.CaptureAll();
             EnsureOverlays(monitors.Count);
 
-            var config = new OverlayWindow.OverlayConfig(
-                SmartSelectEnabled: _settings.ScreenshotSmartSelect,
-                DefaultTool: ParseTool(_settings.ScreenshotDefaultTool),
-                DefaultColor: RgbaColor.Default,
-                DefaultWidth: 3,
-                MosaicGranularity: Math.Clamp(_settings.ScreenshotMosaicGranularity, 2, 64),
-                ColorFormat: ParseColorFormat(_settings.ScreenshotColorFormat));
+            var config = BuildConfig();
 
             for (var i = 0; i < monitors.Count && i < captures.Count; i++)
             {
@@ -104,8 +101,96 @@ public sealed class ScreenshotService : IDisposable
             overlay.Copied += OnCopied;
             overlay.Saved += OnSaved;
             overlay.Pinned += OnPinned;
+            overlay.LongCaptureRequested += rect => OnLongCaptureRequested(overlay, rect);
             overlay.Exited += HideAll;
             _overlays.Add(overlay);
+        }
+    }
+
+    private OverlayWindow.OverlayConfig BuildConfig() => new(
+        SmartSelectEnabled: _settings.ScreenshotSmartSelect,
+        DefaultTool: ParseTool(_settings.ScreenshotDefaultTool),
+        DefaultColor: RgbaColor.Default,
+        DefaultWidth: 3,
+        MosaicGranularity: Math.Clamp(_settings.ScreenshotMosaicGranularity, 2, 64),
+        ColorFormat: ParseColorFormat(_settings.ScreenshotColorFormat));
+
+    // ---------- 长截图 ----------
+
+    /// <summary>进入长截图采集：隐藏覆盖层（露出真实内容供滚动），开实时预览控制窗</summary>
+    private void OnLongCaptureRequested(OverlayWindow source, System.Drawing.Rectangle region)
+    {
+        try
+        {
+            if (_longSession != null)
+            {
+                return;
+            }
+
+            HideAll();
+
+            var session = new LongCaptureSession(_logger, region);
+            _longSession = session;
+
+            // 控制窗放选区右侧（放不下则左侧），DIP 坐标
+            var monitors = ScreenCaptureService.GetMonitors();
+            var idx = ScreenCaptureService.MonitorIndexFromPixelPoint(
+                monitors, new System.Drawing.Point(region.X + region.Width / 2, region.Y + region.Height / 2));
+            var monitor = monitors[Math.Clamp(idx, 0, monitors.Count - 1)];
+            var scale = monitor.ScaleX;
+            var left = region.Right / scale + 16;
+            if (left + 380 > monitor.PixelBounds.Right / scale)
+            {
+                left = region.Left / scale - 380 - 16;
+            }
+
+            var position = new Point(Math.Max(4, left), Math.Max(4, region.Top / scale));
+            var window = new LongCaptureWindow(session, _logger, position);
+            _longWindow = window;
+
+            session.Finished += img =>
+            {
+                window.Close();
+                _longSession = null;
+                _longWindow = null;
+                OpenEditor(img);
+            };
+            session.Cancelled += () =>
+            {
+                window.Close();
+                _longSession = null;
+                _longWindow = null;
+                // 取消：恢复原覆盖层，继续刚才的选区操作
+                source.Show();
+                source.Activate();
+                _active = true;
+            };
+
+            window.Show();
+            session.Start();
+            _logger.Information("Long capture started: region {Region}", region);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Start long capture failed");
+        }
+    }
+
+    /// <summary>长截图完成 → 复用覆盖层进入图像编辑（标注/复制/保存/钉图）</summary>
+    private void OpenEditor(BitmapSource image)
+    {
+        try
+        {
+            var monitors = ScreenCaptureService.GetMonitors();
+            EnsureOverlays(1);
+            _overlays[0].PrepareExternal(image, monitors[0], BuildConfig());
+            _overlays[0].Show();
+            _active = true;
+            _logger.Information("Long-image editor opened: {W}x{H}px", image.PixelWidth, image.PixelHeight);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Open long-image editor failed");
         }
     }
 
@@ -210,6 +295,19 @@ public sealed class ScreenshotService : IDisposable
 
     public void Dispose()
     {
+        _longSession?.Dispose();
+        _longSession = null;
+        try
+        {
+            _longWindow?.Close();
+        }
+        catch
+        {
+            // 关闭失败不阻塞退出
+        }
+
+        _longWindow = null;
+
         foreach (var overlay in _overlays)
         {
             try
