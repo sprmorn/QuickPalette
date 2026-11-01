@@ -1539,6 +1539,16 @@ public partial class OverlayWindow : Window
         }
 
         SelectionBorder.Visibility = Visibility.Visible;
+
+        // 边框与遮罩洞外扩出捕获区：选区边框/遮罩边缘不能被拍进长图
+        //（否则每帧的边界像素在拼接缝上形成蓝线）
+        var inflated = Rect.Inflate(_selection, 3, 3);
+        HoleRect.Rect = inflated;
+        Canvas.SetLeft(SelectionBorder, inflated.X);
+        Canvas.SetTop(SelectionBorder, inflated.Y);
+        SelectionBorder.Width = inflated.Width;
+        SelectionBorder.Height = inflated.Height;
+
         SetClickThrough(true);
     }
 
@@ -1547,6 +1557,14 @@ public partial class OverlayWindow : Window
     {
         _longCaptureMask = false;
         SetClickThrough(false);
+
+        // 恢复边框与遮罩到精确选区
+        HoleRect.Rect = _selection;
+        Canvas.SetLeft(SelectionBorder, _selection.X);
+        Canvas.SetTop(SelectionBorder, _selection.Y);
+        SelectionBorder.Width = _selection.Width;
+        SelectionBorder.Height = _selection.Height;
+
         BaseImage.Visibility = Visibility.Visible;
         if (_hasSelection)
         {
