@@ -31,9 +31,9 @@ public partial class UsbPromptWindow : Window
 
         // 盘符图标（大容量 = 移动硬盘造型）；按钮之外必须显式着色
         var bigDisk = IsBigDisk(drive);
-        DriveIconHost.Content = ToolbarIcons.Create(bigDisk ? "usb-disk" : "usb", 34, Brushes.White);
-        OpenIconHost.Content = ToolbarIcons.Create("usb-folder", 14);
-        EjectIconHost.Content = ToolbarIcons.Create("usb-eject", 14);
+        DriveIconHost.Content = ToolbarIcons.Create(bigDisk ? "usb-disk" : "usb", 32, Brushes.White);
+        OpenIconHost.Content = ToolbarIcons.Create("usb-folder", 19);
+        EjectIconHost.Content = ToolbarIcons.Create("usb-eject", 19);
 
         LoadDriveInfo();
 
