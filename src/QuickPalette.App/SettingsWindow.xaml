@@ -72,6 +72,47 @@
             </Style.Triggers>
         </Style>
 
+        <!-- 左侧导航项样式（Win11/DevToys 风格：圆角药丸 + 选中高亮） -->
+        <Style x:Key="NavItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgSelected}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TabControl：无页签条模板（页切换由左侧导航驱动，WPF 原生做法） -->
+        <Style TargetType="TabControl">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <ContentPresenter ContentSource="SelectedContent"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Tab 样式 -->
         <Style TargetType="TabItem">
             <Setter Property="Background" Value="{DynamicResource BgWindow}"/>
@@ -224,10 +265,60 @@
                 </Grid>
             </Border>
 
-            <!-- 内容区域 -->
-            <TabControl Grid.Row="1"
-                        Background="Transparent"
-                        BorderThickness="0">
+            <!-- 内容区域：左侧分类导航 + 右侧页内容（WPF 原生 ListBox/TabControl 双栏） -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左：分类导航 -->
+                <Border Grid.Column="0"
+                        Background="{DynamicResource BgCard}"
+                        Padding="10,12,6,10">
+                    <ListBox x:Name="NavList"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ItemContainerStyle="{StaticResource NavItemStyle}"
+                             SelectionChanged="NavList_SelectionChanged">
+                        <ListBoxItem x:Name="NavApps">
+                            <TextBlock x:Name="NavAppsText" Text="📋 应用管理" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavHotkey">
+                            <TextBlock x:Name="NavHotkeyText" Text="⌨ 快捷键" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavScreenshot">
+                            <TextBlock x:Name="NavScreenshotText" Text="📷 截图" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavToolbox">
+                            <TextBlock x:Name="NavToolboxText" Text="🧰 工具箱" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavGeneral">
+                            <TextBlock x:Name="NavGeneralText" Text="⚙ 通用" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavFilters">
+                            <TextBlock x:Name="NavFiltersText" Text="🔍 过滤规则" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavBackup">
+                            <TextBlock x:Name="NavBackupText" Text="💾 备份" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                        <ListBoxItem x:Name="NavAbout">
+                            <TextBlock x:Name="NavAboutText" Text="🎀 关于" VerticalAlignment="Center"/>
+                        </ListBoxItem>
+                    </ListBox>
+                </Border>
+
+                <!-- 分隔线 -->
+                <Border Grid.Column="1"
+                        Width="1"
+                        HorizontalAlignment="Left"
+                        Background="{DynamicResource BgTabBorder}"/>
+
+                <!-- 右：页内容（原 TabControl，页签条隐藏，由左侧导航驱动） -->
+                <TabControl x:Name="MainTabs"
+                            Grid.Column="1"
+                            Background="Transparent"
+                            BorderThickness="0">
 
                 <!-- 应用管理 Tab -->
                 <TabItem x:Name="TabAppsItem" Header="📋 应用管理">
@@ -1013,6 +1104,7 @@
                     </ScrollViewer>
                 </TabItem>
             </TabControl>
+            </Grid>
 
             <!-- 底部按钮 -->
             <StackPanel Grid.Row="2"

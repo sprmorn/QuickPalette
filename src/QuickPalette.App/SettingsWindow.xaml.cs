@@ -109,6 +109,9 @@ public partial class SettingsWindow : Window
             _logger.Information("Topmost hotkey recorded: {Hotkey}", hotkey);
         };
 
+        // 双栏导航：默认选中第一项（与 TabControl 页序一一对应）
+        NavList.SelectedIndex = 0;
+
         // 窗口关闭：停表（修 DispatcherTimer 泄漏）+ 回滚未保存的注册/主题
         Closed += (s, e) => OnWindowClosed();
 
@@ -161,6 +164,16 @@ public partial class SettingsWindow : Window
         TabGeneralItem.Header = UiText.T("Settings.TabGeneral");
         TabFiltersItem.Header = UiText.T("Settings.TabFilters");
         TabBackupItem.Header = UiText.T("Settings.TabBackup");
+
+        // 左侧导航标签（与页签同源文案，文案自带 emoji 图标）
+        NavAppsText.Text = UiText.T("Settings.TabApps");
+        NavHotkeyText.Text = UiText.T("Settings.TabHotkey");
+        NavScreenshotText.Text = UiText.T("Settings.TabScreenshot");
+        NavToolboxText.Text = "🧰 工具箱";
+        NavGeneralText.Text = UiText.T("Settings.TabGeneral");
+        NavFiltersText.Text = UiText.T("Settings.TabFilters");
+        NavBackupText.Text = UiText.T("Settings.TabBackup");
+        NavAboutText.Text = "🎀 关于";
 
         AddAppButton.Content = UiText.T("Settings.AddApp");
         ImportAppsButton.Content = UiText.T("Settings.ImportApps");
@@ -235,6 +248,15 @@ public partial class SettingsWindow : Window
     /// <summary>
     /// 所有控件按 _settings 回显（含主题单选，修"保存即覆盖成 dark"）
     /// </summary>
+    /// <summary>左侧导航 → 切换右侧页内容（索引一一对应）</summary>
+    private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (NavList.SelectedIndex >= 0)
+        {
+            MainTabs.SelectedIndex = NavList.SelectedIndex;
+        }
+    }
+
     private void ApplySettingsToUI()
     {
         _loading = true;

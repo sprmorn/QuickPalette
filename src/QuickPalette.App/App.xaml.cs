@@ -255,6 +255,12 @@ public partial class App : System.Windows.Application
             }
 
             _logger.Information("QuickPalette started successfully with {Count} apps", apps.Count);
+
+            // 测试/运维入口：--settings 启动后直接打开设置页
+            if (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--settings", StringComparison.OrdinalIgnoreCase)))
+            {
+                Dispatcher.BeginInvoke(ShowSettings);
+            }
         }
         catch (Exception ex)
         {
