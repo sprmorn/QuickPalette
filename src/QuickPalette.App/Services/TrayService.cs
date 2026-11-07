@@ -16,6 +16,7 @@ public class TrayService : IDisposable
     private readonly Action _showAddApp;
     private readonly Action _captureCurrentWindow;
     private readonly Action _takeScreenshot;
+    private readonly Action? _showUsbAssistant;
     private readonly Action _showSettings;
     private readonly Action _exitApp;
 
@@ -29,13 +30,15 @@ public class TrayService : IDisposable
         Action captureCurrentWindow,
         Action takeScreenshot,
         Action showSettings,
-        Action exitApp)
+        Action exitApp,
+        Action? showUsbAssistant = null)
     {
         _logger = logger;
         _showPalette = showPalette;
         _showAddApp = showAddApp;
         _captureCurrentWindow = captureCurrentWindow;
         _takeScreenshot = takeScreenshot;
+        _showUsbAssistant = showUsbAssistant;
         _showSettings = showSettings;
         _exitApp = exitApp;
 
@@ -110,6 +113,14 @@ public class TrayService : IDisposable
         screenshotItem.Click += (s, e) => _takeScreenshot();
         menu.Items.Add(screenshotItem);
 
+        // U盘小助手（提示卡消失后可随时再打开）
+        if (_showUsbAssistant != null)
+        {
+            var usbItem = new ToolStripMenuItem(UiText.T("tray.usb"));
+            usbItem.Click += (s, e) => _showUsbAssistant();
+            menu.Items.Add(usbItem);
+        }
+
         menu.Items.Add(new ToolStripSeparator());
 
         var settingsItem = new ToolStripMenuItem(UiText.T("tray.settings"));
@@ -123,6 +134,19 @@ public class TrayService : IDisposable
         menu.Items.Add(exitItem);
 
         return menu;
+    }
+
+    /// <summary>托盘气泡提示（无 U盘等轻量反馈）</summary>
+    public void ShowInfo(string title, string text)
+    {
+        try
+        {
+            _notifyIcon.ShowBalloonTip(2500, title, text, ToolTipIcon.Info);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Tray balloon failed");
+        }
     }
 
     private void NotifyIcon_MouseClick(object? sender, MouseEventArgs e)

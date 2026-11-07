@@ -184,8 +184,9 @@ internal static class ToolbarIcons
         },
     };
 
-    /// <summary>创建图标（Viewbox 内 48×48 画布，描边随缩放保持比例）</summary>
-    public static FrameworkElement Create(string key, double size = 20)
+    /// <summary>创建图标（Viewbox 内 48×48 画布，描边随缩放保持比例）。
+    /// brush 为空时跟随按钮前景色；按钮之外（弹窗/面板）请显式传色。</summary>
+    public static FrameworkElement Create(string key, double size = 20, Brush? brush = null)
     {
         var canvas = new Canvas { Width = 48, Height = 48, IsHitTestVisible = false };
         foreach (var p in Data[key])
@@ -201,12 +202,21 @@ internal static class ToolbarIcons
                 IsHitTestVisible = false,
             };
 
-            // 跟随按钮前景色（选中/悬停状态自动变色）
-            var binding = new Binding(Control.ForegroundProperty.Name)
+            if (brush != null)
             {
-                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ButtonBase), 1),
-            };
-            path.SetBinding(p.Filled ? Shape.FillProperty : Shape.StrokeProperty, binding);
+                // 显式着色（按钮之外的场景：FindAncestor 找不到 Button 会渲染成隐形）
+                if (p.Filled) path.Fill = brush; else path.Stroke = brush;
+            }
+            else
+            {
+                // 跟随按钮前景色（选中/悬停状态自动变色）
+                var binding = new Binding(Control.ForegroundProperty.Name)
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ButtonBase), 1),
+                };
+                path.SetBinding(p.Filled ? Shape.FillProperty : Shape.StrokeProperty, binding);
+            }
+
             canvas.Children.Add(path);
         }
 

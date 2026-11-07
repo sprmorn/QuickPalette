@@ -157,7 +157,8 @@ public partial class App : System.Windows.Application
                 CaptureCurrentWindow,
                 () => _screenshotService?.StartCapture(),
                 ShowSettings,
-                ExitApplication);
+                ExitApplication,
+                showUsbAssistant: ShowUsbAssistantNow);
             _trayService.SetTheme(settings.Theme);
 
             // 12. 注册全局热键（任何异常都不允许中断启动——否则托盘/设置全没了）
@@ -585,7 +586,7 @@ public partial class App : System.Windows.Application
             {
                 var settingsWindow = new SettingsWindow(_repository, _logger, _hotkeyService, OnHotkeyPressed, _fileSearchManager,
                     () => _mainWindow?.RefreshApps(),
-                    onUsbCheckRequested: () => _usbMonitor?.CheckNow());
+                    onUsbCheckRequested: ShowUsbAssistantNow);
                 TrySetOwner(settingsWindow);
 
                 settingsWindow.ShowDialog();
@@ -789,6 +790,22 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             _logger?.Error(ex, "Show USB prompt failed");
+        }
+    }
+
+    /// <summary>U盘小助手：手动打开（托盘菜单 / 设置·工具箱"立即检测"）——对当前插入的每个盘弹卡</summary>
+    private void ShowUsbAssistantNow()
+    {
+        var drives = UsbDriveMonitor.GetRemovableDrives();
+        if (drives.Count == 0)
+        {
+            _trayService?.ShowInfo(UiText.T("tray.usb"), "未检测到可移动磁盘");
+            return;
+        }
+
+        foreach (var drive in drives)
+        {
+            ShowUsbPrompt(drive);
         }
     }
 
