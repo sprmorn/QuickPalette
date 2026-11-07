@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -112,6 +113,16 @@ public partial class SettingsWindow : Window
         // 双栏导航：默认选中第一项（与 TabControl 页序一一对应）
         NavList.SelectedIndex = 0;
 
+        // 导航矢量图标（svg/set；着色跟随导航项前景色，选中/悬停自动变色）
+        NavAppsIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-apps", 17);
+        NavHotkeyIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-hotkey", 17);
+        NavScreenshotIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-screenshot", 17);
+        NavToolboxIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-toolbox", 17);
+        NavGeneralIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-general", 17);
+        NavFiltersIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-filters", 17);
+        NavBackupIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-backup", 17);
+        NavAboutIcon.Content = QuickPalette.App.Screenshot.ToolbarIcons.Create("nav-about", 17);
+
         // 窗口关闭：停表（修 DispatcherTimer 泄漏）+ 回滚未保存的注册/主题
         Closed += (s, e) => OnWindowClosed();
 
@@ -156,7 +167,7 @@ public partial class SettingsWindow : Window
     private void ApplyUiText()
     {
         Title = UiText.T("Settings.Title");
-        TitleText.Text = UiText.T("Settings.WindowTitle");
+        TitleText.Text = StripEmoji(UiText.T("Settings.WindowTitle")); // 图标由 svg 提供，去 emoji
 
         TabAppsItem.Header = UiText.T("Settings.TabApps");
         TabHotkeyItem.Header = UiText.T("Settings.TabHotkey");
@@ -165,15 +176,15 @@ public partial class SettingsWindow : Window
         TabFiltersItem.Header = UiText.T("Settings.TabFilters");
         TabBackupItem.Header = UiText.T("Settings.TabBackup");
 
-        // 左侧导航标签（与页签同源文案，文案自带 emoji 图标）
-        NavAppsText.Text = UiText.T("Settings.TabApps");
-        NavHotkeyText.Text = UiText.T("Settings.TabHotkey");
-        NavScreenshotText.Text = UiText.T("Settings.TabScreenshot");
-        NavToolboxText.Text = "🧰 工具箱";
-        NavGeneralText.Text = UiText.T("Settings.TabGeneral");
-        NavFiltersText.Text = UiText.T("Settings.TabFilters");
-        NavBackupText.Text = UiText.T("Settings.TabBackup");
-        NavAboutText.Text = "🎀 关于";
+        // 左侧导航标签（与页签同源文案；图标由 svg/set 提供，去除文案自带的 emoji）
+        NavAppsText.Text = StripEmoji(UiText.T("Settings.TabApps"));
+        NavHotkeyText.Text = StripEmoji(UiText.T("Settings.TabHotkey"));
+        NavScreenshotText.Text = StripEmoji(UiText.T("Settings.TabScreenshot"));
+        NavToolboxText.Text = "工具箱";
+        NavGeneralText.Text = StripEmoji(UiText.T("Settings.TabGeneral"));
+        NavFiltersText.Text = StripEmoji(UiText.T("Settings.TabFilters"));
+        NavBackupText.Text = StripEmoji(UiText.T("Settings.TabBackup"));
+        NavAboutText.Text = "关于";
 
         AddAppButton.Content = UiText.T("Settings.AddApp");
         ImportAppsButton.Content = UiText.T("Settings.ImportApps");
@@ -256,6 +267,23 @@ public partial class SettingsWindow : Window
             MainTabs.SelectedIndex = NavList.SelectedIndex;
         }
     }
+
+    /// <summary>标题栏拖动移动窗口（无边框自绘窗口的标准做法）</summary>
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        try
+        {
+            DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // 鼠标键已释放等竞态，忽略
+        }
+    }
+
+    /// <summary>去掉文案开头的 emoji/符号前缀（图标改由 svg 提供）</summary>
+    private static string StripEmoji(string text)
+        => System.Text.RegularExpressions.Regex.Replace(text ?? string.Empty, "^[^a-zA-Z\u4e00-\u9fff]+", "");
 
     private void ApplySettingsToUI()
     {
