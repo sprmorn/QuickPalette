@@ -238,6 +238,44 @@ public partial class OverlayWindow : Window
         {
             PositionPixelPerfect();
         }
+
+        // 显示前预渲染：复用的覆盖层隐藏期间 DWM 保留上一帧合成画面，
+        // 直接 Show 会先闪现上一次截图（再过一帧才是新内容）
+        Opacity = 1;
+        PrimeFrame();
+    }
+
+    /// <summary>显示前把新内容推进渲染管线（尽量让隐藏期的合成帧就是新画面）</summary>
+    private void PrimeFrame()
+    {
+        try
+        {
+            UpdateLayout();
+            var probe = new RenderTargetBitmap(1, 1, 96, 96, PixelFormats.Pbgra32);
+            probe.Render(this); // 触发完整布局 + 渲染遍历
+            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+        }
+        catch
+        {
+            // 预渲染失败不影响功能（最多闪一次旧画面）
+        }
+    }
+
+    /// <summary>
+    /// 隐藏前清帧：把透明帧推入渲染管线后再隐藏，
+    /// 使残留的合成帧为空白——下次 Show 不会闪现上一次截图。
+    /// </summary>
+    public void ClearFrameOnHide()
+    {
+        try
+        {
+            Opacity = 0;
+            Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+        }
+        catch
+        {
+            // 忽略
+        }
     }
 
     /// <summary>
@@ -284,6 +322,9 @@ public partial class OverlayWindow : Window
         {
             PositionPixelPerfect();
         }
+
+        Opacity = 1;
+        PrimeFrame();
     }
 
     /// <summary>像素级精确置位（绕过 WPF 跨 DPI 坐标系的模糊地带）</summary>
@@ -1510,6 +1551,7 @@ public partial class OverlayWindow : Window
     {
         try
         {
+            ClearFrameOnHide(); // 清残留合成帧：否则下次唤起闪现本次截图画面
             Hide();
             Exited?.Invoke();
         }

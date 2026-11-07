@@ -483,6 +483,106 @@
                 </TabItem>
 
                 <!-- 通用设置 Tab -->
+                <TabItem x:Name="TabToolboxItem" Header="🧰 工具箱">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20">
+
+                        <!-- 置顶窗口 -->
+                        <Border Background="{DynamicResource BgCard}"
+                                CornerRadius="8"
+                                Padding="15"
+                                Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="置顶窗口"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontSize="14"
+                                           FontWeight="Medium"
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="按快捷键把当前窗口置顶在最上层，再按一次取消置顶。"
+                                           Foreground="{DynamicResource TextDim2}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,10"/>
+                                <CheckBox x:Name="TopmostToolCheckBox"
+                                          Content="启用置顶窗口"
+                                          Margin="0,0,0,10"/>
+                                <local:HotkeyRecorderControl x:Name="TopmostHotkeyRecorder"
+                                                             Margin="0,0,0,6"/>
+                                <TextBlock Text="提示：也可在目标窗口上使用，默认快捷键 Alt+F。"
+                                           Foreground="{DynamicResource AccentTextBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- U盘小助手 -->
+                        <Border Background="{DynamicResource BgCard}"
+                                CornerRadius="8"
+                                Padding="15"
+                                Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="U盘小助手"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontSize="14"
+                                           FontWeight="Medium"
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="插入 U盘后弹出快捷操作：打开文件夹 / 安全弹出。"
+                                           Foreground="{DynamicResource TextDim2}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,10"/>
+                                <CheckBox x:Name="UsbAssistantCheckBox"
+                                          Content="启用 U盘小助手"
+                                          Margin="0,0,0,10"/>
+                                <Button x:Name="UsbCheckNowButton"
+                                        Content="立即检测已插入的 U盘"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Click="UsbCheckNow_Click"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,0,0,6"/>
+                                <TextBlock Text="提示：提示窗右下角弹出，20 秒无操作自动关闭；'弹出'为系统安全弹出。"
+                                           Foreground="{DynamicResource AccentTextBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 网络搜索 -->
+                        <Border Background="{DynamicResource BgCard}"
+                                CornerRadius="8"
+                                Padding="15"
+                                Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock x:Name="DeepSeekTitle"
+                                           Text="网络搜索"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontSize="14"
+                                           FontWeight="Medium"
+                                           Margin="0,0,0,5"/>
+
+                                <TextBlock x:Name="DeepSeekDesc"
+                                           Text="在搜索框输入「指令 关键词」回车直接搜索，或输入指令后按 Tab 进入搜索模式。指令：bd 百度 · dy 抖音 · bl 哔哩哔哩 · ds DeepSeek。"
+                                           Foreground="{DynamicResource TextDim2}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,10"/>
+
+                                <CheckBox x:Name="DeepSeekCheckBox"
+                                          Content="启用网络搜索（bd / dy / bl / ds）"/>
+
+                                <TextBlock x:Name="DeepSeekHint"
+                                           Text="提示：DeepSeek 搜索需登录 DeepSeek 账号；其余指令直接打开对应网站搜索。"
+                                           Foreground="{DynamicResource AccentTextBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
                 <TabItem x:Name="TabGeneralItem" Header="⚙ 通用">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="20">
@@ -595,38 +695,6 @@
 
                                     <CheckBox x:Name="PreviewCheckBox"
                                               Content="单击文档时显示预览窗口"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 网络搜索 -->
-                            <Border Background="{DynamicResource BgCard}"
-                                    CornerRadius="8"
-                                    Padding="15"
-                                    Margin="0,0,0,15">
-                                <StackPanel>
-                                    <TextBlock x:Name="DeepSeekTitle"
-                                               Text="网络搜索"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="14"
-                                               FontWeight="Medium"
-                                               Margin="0,0,0,5"/>
-
-                                    <TextBlock x:Name="DeepSeekDesc"
-                                               Text="在搜索框输入「指令 关键词」回车直接搜索，或输入指令后按 Tab 进入搜索模式。指令：bd 百度 · dy 抖音 · bl 哔哩哔哩 · ds DeepSeek。"
-                                               Foreground="{DynamicResource TextDim2}"
-                                               FontSize="12"
-                                               TextWrapping="Wrap"
-                                               Margin="0,0,0,10"/>
-
-                                    <CheckBox x:Name="DeepSeekCheckBox"
-                                              Content="启用网络搜索（bd / dy / bl / ds）"/>
-
-                                    <TextBlock x:Name="DeepSeekHint"
-                                               Text="提示：DeepSeek 搜索需登录 DeepSeek 账号；其余指令直接打开对应网站搜索。"
-                                               Foreground="{DynamicResource AccentTextBrush}"
-                                               FontSize="12"
-                                               TextWrapping="Wrap"
-                                               Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
 

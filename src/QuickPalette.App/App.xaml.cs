@@ -35,6 +35,10 @@ public partial class App : System.Windows.Application
 
     /// <summary>截图全局热键（独立实例：与主唤起热键互不影响、互不回滚）</summary>
     private HotkeyService? _screenshotHotkeyService;
+
+    /// <summary>工具箱：置顶窗口热键（独立实例）+ U盘小助手监听</summary>
+    private HotkeyService? _topmostHotkeyService;
+    private UsbDriveMonitor? _usbMonitor;
     private ForegroundWindowTracker? _foregroundTracker;
     private JsonRepository? _repository;
     private LauncherManager? _launcherManager;
@@ -202,6 +206,42 @@ public partial class App : System.Windows.Application
             catch (Exception ex)
             {
                 _logger.Error(ex, "Screenshot hotkey init failed (continuing without screenshot hotkey)");
+            }
+
+            // 12c. 工具箱：置顶窗口热键 + U盘小助手（失败不阻塞启动）
+            try
+            {
+                if (settings.TopmostToolEnabled)
+                {
+                    _topmostHotkeyService = new HotkeyService(_logger);
+                    if (_topmostHotkeyService.TryRegisterHotkey(settings.TopmostHotkey, OnTopmostHotkeyPressed, out var topErr))
+                    {
+                        _logger.Information("Topmost hotkey registered: {Hotkey}", settings.TopmostHotkey);
+                    }
+                    else
+                    {
+                        _logger.Warning("Topmost hotkey failed: {Hotkey} ({Error})，可在设置·工具箱中更换",
+                            settings.TopmostHotkey, topErr);
+                    }
+                }
+
+                if (settings.UsbAssistantEnabled)
+                {
+                    _usbMonitor = new UsbDriveMonitor(_logger);
+                    _usbMonitor.DriveArrived += drive => Dispatcher.BeginInvoke(() => ShowUsbPrompt(drive));
+                    _usbMonitor.Start();
+                    Exit += (_, _) => _usbMonitor?.Dispose();
+
+                    // 测试/运维入口：--usb-check 立即检测已插入的 U盘并提示
+                    if (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--usb-check", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        _usbMonitor.CheckNow();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Toolbox init failed (continuing)");
             }
 
             if (degraded)
@@ -544,7 +584,8 @@ public partial class App : System.Windows.Application
             try
             {
                 var settingsWindow = new SettingsWindow(_repository, _logger, _hotkeyService, OnHotkeyPressed, _fileSearchManager,
-                    () => _mainWindow?.RefreshApps());
+                    () => _mainWindow?.RefreshApps(),
+                    onUsbCheckRequested: () => _usbMonitor?.CheckNow());
                 TrySetOwner(settingsWindow);
 
                 settingsWindow.ShowDialog();
@@ -566,6 +607,9 @@ public partial class App : System.Windows.Application
             // 截图模块热更新（设置 + 截图热键）
             _screenshotService?.UpdateSettings(updated);
             UpdateScreenshotHotkey(updated.ScreenshotHotkey);
+
+            // 工具箱热更新（置顶热键 + U盘小助手）
+            UpdateToolboxServices(updated);
 
             // 重新加载应用列表
             _mainWindow?.RefreshApps();
@@ -664,6 +708,89 @@ public partial class App : System.Windows.Application
 
     /// <summary>截图热键触发（Alt+D 或设置中的自定义键）</summary>
     private void OnScreenshotHotkeyPressed() => _screenshotService?.StartCapture();
+
+    /// <summary>置顶窗口热键触发（Alt+F 或设置中的自定义键）</summary>
+    private void OnTopmostHotkeyPressed()
+    {
+        if (_logger != null)
+        {
+            WindowTopmostTool.ToggleForeground(_logger);
+        }
+    }
+
+    /// <summary>设置页修改置顶热键后重注册（失败保留旧热键并提示）</summary>
+    private void UpdateTopmostHotkey(string hotkey)
+    {
+        try
+        {
+            _topmostHotkeyService ??= new HotkeyService(_logger!);
+            if (!_topmostHotkeyService.TryRegisterHotkey(hotkey, OnTopmostHotkeyPressed, out var error))
+            {
+                _logger?.Warning("Topmost hotkey change failed: {Hotkey} ({Error})", hotkey, error);
+                MessageBox.Show(
+                    $"{string.Format(UiText.T("app.hotkey.conflict"), hotkey)}\n{error}",
+                    UiText.T("app.hotkey.conflict.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Topmost hotkey update failed");
+        }
+    }
+
+    /// <summary>工具箱设置热更新：U盘小助手启停 + 置顶热键开关</summary>
+    private void UpdateToolboxServices(Settings updated)
+    {
+        try
+        {
+            if (updated.UsbAssistantEnabled)
+            {
+                if (_usbMonitor == null)
+                {
+                    _usbMonitor = new UsbDriveMonitor(_logger!);
+                    _usbMonitor.DriveArrived += drive => Dispatcher.BeginInvoke(() => ShowUsbPrompt(drive));
+                    _usbMonitor.Start();
+                    Exit += (_, _) => _usbMonitor?.Dispose();
+                }
+            }
+            else
+            {
+                _usbMonitor?.Dispose();
+                _usbMonitor = null;
+            }
+
+            if (updated.TopmostToolEnabled)
+            {
+                UpdateTopmostHotkey(updated.TopmostHotkey);
+            }
+            else
+            {
+                _topmostHotkeyService?.Dispose();
+                _topmostHotkeyService = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Toolbox services update failed");
+        }
+    }
+
+    /// <summary>U盘小助手：弹出提示窗（右下角通知位）</summary>
+    private void ShowUsbPrompt(string drive)
+    {
+        try
+        {
+            var window = new UsbPromptWindow(_logger!, drive);
+            window.Show();
+            _logger?.Information("USB prompt shown: {Drive}", drive);
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error(ex, "Show USB prompt failed");
+        }
+    }
 
     /// <summary>设置页修改截图热键后重注册（失败保留旧热键并提示）</summary>
     private void UpdateScreenshotHotkey(string hotkey)

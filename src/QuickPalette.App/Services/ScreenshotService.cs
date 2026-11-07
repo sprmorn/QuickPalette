@@ -227,6 +227,7 @@ public sealed class ScreenshotService : IDisposable
     {
         foreach (var overlay in _overlays)
         {
+            overlay.ClearFrameOnHide(); // 清残留合成帧，避免下次唤起闪现旧画面
             overlay.Hide();
         }
 

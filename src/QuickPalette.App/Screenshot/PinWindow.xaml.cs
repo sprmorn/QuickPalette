@@ -140,10 +140,40 @@ public partial class PinWindow : Window
         SetWindowPos(hwnd, HwndTopmost, x, y, w, h, SwpShowWindow);
     }
 
-    private void Window_MouseRightButtonUp(object sender, MouseButtonEventArgs e) => Close();
-
     /// <summary>双击：关闭钉图</summary>
     private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e) => Close();
+
+    #region 右键菜单（复制 / 保存 / 关闭）
+
+    private void MenuCopy_Click(object sender, RoutedEventArgs e) => CopyToClipboard();
+
+    private void MenuSave_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "PNG 图片|*.png",
+                FileName = $"钉图_{DateTime.Now:yyyyMMdd_HHmmss}.png"
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(_image));
+                using var fs = File.Create(dialog.FileName);
+                encoder.Save(fs);
+                _logger.Information("Pin saved: {File}", dialog.FileName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Pin save failed");
+        }
+    }
+
+    private void MenuClose_Click(object sender, RoutedEventArgs e) => Close();
+
+    #endregion
 
     /// <summary>复制钉图到剪贴板（中键 / Ctrl+C）：CF_DIB + PNG 流双格式（兼容 QQ/微信）</summary>
     private void CopyToClipboard()

@@ -11,12 +11,19 @@
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         MouseDown="Window_MouseDown"
         MouseWheel="Window_MouseWheel"
-        MouseRightButtonUp="Window_MouseRightButtonUp"
         MouseDoubleClick="Window_MouseDoubleClick"
         KeyDown="Window_KeyDown">
     <Border BorderBrush="#88000000"
             BorderThickness="1"
             CornerRadius="2">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="复制图片（Ctrl+C）" Click="MenuCopy_Click"/>
+                <MenuItem Header="保存图片…" Click="MenuSave_Click"/>
+                <Separator/>
+                <MenuItem Header="关闭" Click="MenuClose_Click"/>
+            </ContextMenu>
+        </Border.ContextMenu>
         <Image x:Name="PinImage" Stretch="Fill" />
     </Border>
 </Window>

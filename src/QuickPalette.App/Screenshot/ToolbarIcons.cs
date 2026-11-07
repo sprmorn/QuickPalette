@@ -151,6 +151,37 @@ internal static class ToolbarIcons
             new("M8 8L40 40", false),
             new("M8 40L40 8", false),
         },
+
+        // U盘（svg/new）
+        ["usb"] = new IconPath[]
+        {
+            new("M8 22C8 20.8954 8.89543 20 10 20H38C39.1046 20 40 20.8954 40 22V42C40 43.1046 39.1046 44 38 44H10C8.89543 44 8 43.1046 8 42V22Z", false),
+            new("M15 4H33V20H15V4Z", false),
+            new("M21 10V12", false),
+            new("M27 10V12", false),
+        },
+
+        // 弹出（svg/new）
+        ["usb-eject"] = new IconPath[]
+        {
+            new("M9 6H39A3 3 0 0 1 42 9V39A3 3 0 0 1 39 42H9A3 3 0 0 1 6 39V9A3 3 0 0 1 9 6Z", false),
+            new("M19 14L29 24L19 34", false),
+        },
+
+        // 文件夹（svg/new）
+        ["usb-folder"] = new IconPath[]
+        {
+            new("M4 9V41L9 21H39.5V15C39.5 13.8954 38.6046 13 37.5 13H24L19 7H6C4.89543 7 4 7.89543 4 9Z", false),
+            new("M40 41L44 21H8.8125L4 41H40Z", false),
+        },
+
+        // 移动硬盘（svg/new）
+        ["usb-disk"] = new IconPath[]
+        {
+            new("M39 6H9C7.34315 6 6 7.34315 6 9V39C6 40.6569 7.34315 42 9 42H39C40.6569 42 42 40.6569 42 39V9C42 7.34315 40.6569 6 39 6Z", false),
+            new("M32 6H16V16H32V6Z", false),
+            new("M17 36H31", false),
+        },
     };
 
     /// <summary>创建图标（Viewbox 内 48×48 画布，描边随缩放保持比例）</summary>

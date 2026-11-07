@@ -34,6 +34,9 @@ public partial class SettingsWindow : Window
 
     /// <summary>批量导入完成后回调（刷新主面板应用池）</summary>
     private readonly Action? _onAppsImported;
+
+    /// <summary>U盘小助手"立即检测"回调（工具箱页按钮）</summary>
+    private readonly Action? _onUsbCheckRequested;
     private readonly FileSearchManager? _fileSearchManager;
     private readonly DispatcherTimer _fileStatusTimer;
 
@@ -59,7 +62,8 @@ public partial class SettingsWindow : Window
     private BackupService? _backupService;
 
     public SettingsWindow(JsonRepository repository, ILogger logger, HotkeyService hotkeyService,
-        Action onHotkeyPressed, FileSearchManager? fileSearchManager = null, Action? onAppsImported = null)
+        Action onHotkeyPressed, FileSearchManager? fileSearchManager = null, Action? onAppsImported = null,
+        Action? onUsbCheckRequested = null)
     {
         InitializeComponent();
 
@@ -74,6 +78,7 @@ public partial class SettingsWindow : Window
         _hotkeyService = hotkeyService;
         _onHotkeyPressed = onHotkeyPressed;
         _onAppsImported = onAppsImported;
+        _onUsbCheckRequested = onUsbCheckRequested;
         _fileSearchManager = fileSearchManager;
 
         // 定期刷新文件搜索状态（索引构建期间可见进度）
@@ -94,6 +99,14 @@ public partial class SettingsWindow : Window
         {
             _settings.ScreenshotHotkey = hotkey;
             _logger.Information("Screenshot hotkey recorded: {Hotkey}", hotkey);
+        };
+
+        // 置顶窗口热键录制（工具箱；默认值 Alt+F）
+        TopmostHotkeyRecorder.SetDefaultHotkey(new Settings().TopmostHotkey);
+        TopmostHotkeyRecorder.HotkeyChanged += (s, hotkey) =>
+        {
+            _settings.TopmostHotkey = hotkey;
+            _logger.Information("Topmost hotkey recorded: {Hotkey}", hotkey);
         };
 
         // 窗口关闭：停表（修 DispatcherTimer 泄漏）+ 回滚未保存的注册/主题
@@ -239,6 +252,12 @@ public partial class SettingsWindow : Window
             ScreenshotTemplateBox.Text = _settings.ScreenshotFileNameTemplate;
             ScreenshotMosaicSlider.Value = Math.Clamp(_settings.ScreenshotMosaicGranularity, 4, 48);
             FillScreenshotCombos();
+
+            // 工具箱：置顶窗口 / U盘小助手
+            TopmostToolCheckBox.IsChecked = _settings.TopmostToolEnabled;
+            TopmostHotkeyRecorder.Hotkey = _settings.TopmostHotkey;
+            TopmostHotkeyRecorder.RegisteredHotkey = _settings.TopmostHotkey;
+            UsbAssistantCheckBox.IsChecked = _settings.UsbAssistantEnabled;
 
             // 主题单选回显
             var theme = _settings.Theme?.Trim().ToLowerInvariant();
@@ -731,6 +750,19 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>工具箱：立即检测已插入的 U盘</summary>
+    private void UsbCheckNow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_onUsbCheckRequested == null)
+        {
+            MessageBox.Show("U盘检测服务未就绪，请重启应用后重试。",
+                UiText.T("Common.Error"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _onUsbCheckRequested.Invoke();
+    }
+
     #endregion
 
     #region 文件搜索
@@ -901,6 +933,13 @@ public partial class SettingsWindow : Window
             _settings.ScreenshotDefaultTool = (ScreenshotToolBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "rect";
             _settings.ScreenshotColorFormat = (ScreenshotFormatBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "hex";
             _settings.ScreenshotMosaicGranularity = (int)ScreenshotMosaicSlider.Value;
+
+            // 工具箱
+            _settings.TopmostToolEnabled = TopmostToolCheckBox.IsChecked == true;
+            _settings.TopmostHotkey = string.IsNullOrWhiteSpace(TopmostHotkeyRecorder.Hotkey)
+                ? "Alt+F"
+                : TopmostHotkeyRecorder.Hotkey.Trim();
+            _settings.UsbAssistantEnabled = UsbAssistantCheckBox.IsChecked == true;
 
             // 热键一致性：保存时统一注册 _settings.Hotkey；
             // 注册失败则中止保存（避免运行注册与 settings.json 不一致）

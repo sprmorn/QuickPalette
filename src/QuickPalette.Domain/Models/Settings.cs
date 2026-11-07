@@ -126,6 +126,17 @@ public class Settings
     /// <summary>马赛克粒度（像素块大小）</summary>
     public int ScreenshotMosaicGranularity { get; set; } = 12;
 
+    // ---------- 工具箱 ----------
+
+    /// <summary>窗口置顶工具：启用（快捷键切换当前窗口置顶）</summary>
+    public bool TopmostToolEnabled { get; set; } = true;
+
+    /// <summary>窗口置顶快捷键</summary>
+    public string TopmostHotkey { get; set; } = "Alt+F";
+
+    /// <summary>U盘小助手：插入 U盘时弹出"打开文件夹 / 弹出"快捷操作</summary>
+    public bool UsbAssistantEnabled { get; set; } = true;
+
     /// <summary>
     /// Schema 版本号
     /// </summary>
