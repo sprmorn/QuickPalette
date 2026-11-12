@@ -1148,10 +1148,17 @@
                 <TabItem x:Name="TabAboutItem" Header="🎀 关于">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="20" HorizontalAlignment="Center">
+                            <!-- 产品横版 Logo -->
+                            <Image x:Name="ProductLogoImage"
+                                   Source="Assets/productlogo.png"
+                                   MaxWidth="320"
+                                   Margin="0,24,0,18"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
                             <Image x:Name="AboutImage"
                                    Source="Assets/about.png"
                                    MaxWidth="260"
-                                   Margin="0,20,0,16"
+                                   Margin="0,0,0,16"
                                    RenderOptions.BitmapScalingMode="HighQuality"/>
 
                             <TextBlock Text="春晨制品"
@@ -1169,7 +1176,7 @@
                                        Margin="0,0,0,10"/>
 
                             <TextBlock x:Name="AboutVersionText"
-                                       Text="版本 1.7.0"
+                                       Text="版本"
                                        Foreground="{DynamicResource TextDim2}"
                                        FontSize="12"
                                        HorizontalAlignment="Center"

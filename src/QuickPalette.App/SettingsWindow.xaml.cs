@@ -68,10 +68,10 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
 
-        // 关于页版本号跟随程序集版本（打包时由 publish.ps1 注入）
+        // 关于页版本号跟随程序集版本（打包时由 publish.ps1 注入；不再写死版本）
         var version = Assembly.GetExecutingAssembly().GetName().Version;
-        AboutVersionText.Text = version == null
-            ? "版本 1.7.0"
+        AboutVersionText.Text = version == null || version.Major == 0
+            ? "版本 未知"
             : $"版本 {version.Major}.{version.Minor}.{version.Build}";
 
         _repository = repository;

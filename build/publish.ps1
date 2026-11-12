@@ -21,6 +21,14 @@ $workerProj = "src\QuickPalette.FileIndexWorker\QuickPalette.FileIndexWorker.csp
 $previewProj = "src\QuickPalette.PreviewHost\QuickPalette.PreviewHost.csproj"
 $preview32Proj = "src\QuickPalette.PreviewHost\x86\QuickPalette.PreviewHost32.csproj"
 
+# 同步 csproj 版本号（设置·关于页显示的版本来自程序集，打包版本必须与之一致）
+$csprojText = Get-Content $appProj -Raw -Encoding UTF8
+if ($csprojText -notmatch "<Version>$([regex]::Escape($Version))</Version>") {
+    $csprojText = $csprojText -replace '<Version>[^<]+</Version>', "<Version>$Version</Version>"
+    Set-Content $appProj $csprojText -Encoding UTF8 -NoNewline
+    Write-Host "==> 同步程序集版本：$Version" -ForegroundColor Cyan
+}
+
 Write-Host "==> 清理旧输出" -ForegroundColor Cyan
 Remove-Item $outDir -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $workerDir -Recurse -Force -ErrorAction SilentlyContinue
