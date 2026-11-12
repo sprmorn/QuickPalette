@@ -641,12 +641,13 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- U盘小助手 -->
+                        <!-- 小助手（U盘小助手 + 链接助手） -->
                         <Border Background="{DynamicResource BgCard}"
                                 CornerRadius="8"
                                 Padding="15"
                                 Margin="0,0,0,15">
                             <StackPanel>
+                                <!-- U盘小助手 -->
                                 <TextBlock Text="U盘小助手"
                                            Foreground="{DynamicResource TextPrimary}"
                                            FontSize="14"
@@ -667,6 +668,56 @@
                                         HorizontalAlignment="Left"
                                         Margin="0,0,0,6"/>
                                 <TextBlock Text="提示：提示窗右下角弹出，20 秒无操作自动关闭；'弹出'为系统安全弹出。"
+                                           Foreground="{DynamicResource AccentTextBrush}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"/>
+
+                                <Separator Margin="0,14" Background="{DynamicResource BgTabBorder}"/>
+
+                                <!-- 链接助手 -->
+                                <TextBlock Text="链接助手"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontSize="14"
+                                           FontWeight="Medium"
+                                           Margin="0,0,0,5"/>
+                                <TextBlock Text="复制链接时右上角提示跳转：打开对应软件（网盘转存 / 下载 / 远程 / 入会 / 播放 / 浏览器）。"
+                                           Foreground="{DynamicResource TextDim2}"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,10"/>
+                                <CheckBox x:Name="LinkAssistantCheckBox"
+                                          Content="启用链接助手"
+                                          Margin="0,0,0,10"/>
+
+                                <TextBlock Text="提示分类"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="12"
+                                           Margin="0,0,0,6"/>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <CheckBox x:Name="LinkCatMeetingCheckBox" Content="会议办公" Margin="0,0,14,6"/>
+                                    <CheckBox x:Name="LinkCatRemoteCheckBox" Content="远程" Margin="0,0,14,6"/>
+                                    <CheckBox x:Name="LinkCatCloudCheckBox" Content="网盘" Margin="0,0,14,6"/>
+                                    <CheckBox x:Name="LinkCatDownloadCheckBox" Content="下载" Margin="0,0,14,6"/>
+                                    <CheckBox x:Name="LinkCatMediaCheckBox" Content="影音" Margin="0,0,14,6"/>
+                                    <CheckBox x:Name="LinkCatWebCheckBox" Content="网页" Margin="0,0,14,6"/>
+                                    <CheckBox x:Name="LinkCatOtherCheckBox" Content="其他" Margin="0,0,0,6"/>
+                                </WrapPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="重复提醒间隔"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="12"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="LinkDedupBox" Width="110" VerticalAlignment="Center">
+                                        <ComboBoxItem Content="5 分钟" Tag="5"/>
+                                        <ComboBoxItem Content="10 分钟" Tag="10"/>
+                                        <ComboBoxItem Content="30 分钟" Tag="30"/>
+                                        <ComboBoxItem Content="不限" Tag="0"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <TextBlock Text="提示：没复制东西不会弹；同一链接按间隔去重（网页链接同域名 5 分钟只弹一次）；目标软件未安装时不提示。"
                                            Foreground="{DynamicResource AccentTextBrush}"
                                            FontSize="12"
                                            TextWrapping="Wrap"/>

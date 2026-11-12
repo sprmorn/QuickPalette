@@ -36,9 +36,10 @@ public partial class App : System.Windows.Application
     /// <summary>截图全局热键（独立实例：与主唤起热键互不影响、互不回滚）</summary>
     private HotkeyService? _screenshotHotkeyService;
 
-    /// <summary>工具箱：置顶窗口热键（独立实例）+ U盘小助手监听</summary>
+    /// <summary>工具箱/小助手：置顶窗口热键、U盘监听、链接助手</summary>
     private HotkeyService? _topmostHotkeyService;
     private UsbDriveMonitor? _usbMonitor;
+    private LinkAssistantService? _linkAssistant;
     private ForegroundWindowTracker? _foregroundTracker;
     private JsonRepository? _repository;
     private LauncherManager? _launcherManager;
@@ -239,6 +240,11 @@ public partial class App : System.Windows.Application
                         _usbMonitor.CheckNow();
                     }
                 }
+
+                // 小助手：链接助手（复制链接 → 右上角提示跳转）
+                _linkAssistant = new LinkAssistantService(_logger);
+                _linkAssistant.Start(settings);
+                Exit += (_, _) => _linkAssistant?.Dispose();
             }
             catch (Exception ex)
             {
@@ -776,6 +782,19 @@ public partial class App : System.Windows.Application
             {
                 _topmostHotkeyService?.Dispose();
                 _topmostHotkeyService = null;
+            }
+
+            // 链接助手开关与分类热更新
+            if (updated.LinkAssistantEnabled)
+            {
+                _linkAssistant ??= new LinkAssistantService(_logger!);
+                _linkAssistant.Start(updated);
+                _linkAssistant.UpdateSettings(updated);
+            }
+            else
+            {
+                _linkAssistant?.Dispose();
+                _linkAssistant = null;
             }
         }
         catch (Exception ex)

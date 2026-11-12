@@ -137,6 +137,35 @@ public class Settings
     /// <summary>U盘小助手：插入 U盘时弹出"打开文件夹 / 弹出"快捷操作</summary>
     public bool UsbAssistantEnabled { get; set; } = true;
 
+    // ---------- 链接助手 ----------
+
+    /// <summary>链接助手总开关：复制链接时右上角提示跳转</summary>
+    public bool LinkAssistantEnabled { get; set; } = true;
+
+    /// <summary>分类开关：会议办公</summary>
+    public bool LinkCatMeeting { get; set; } = true;
+
+    /// <summary>分类开关：远程控制</summary>
+    public bool LinkCatRemote { get; set; } = true;
+
+    /// <summary>分类开关：网盘</summary>
+    public bool LinkCatCloud { get; set; } = true;
+
+    /// <summary>分类开关：下载</summary>
+    public bool LinkCatDownload { get; set; } = true;
+
+    /// <summary>分类开关：影音视频</summary>
+    public bool LinkCatMedia { get; set; } = true;
+
+    /// <summary>分类开关：网页链接（兜底）</summary>
+    public bool LinkCatWeb { get; set; } = true;
+
+    /// <summary>分类开关：其他（QQ/邮件/电话）</summary>
+    public bool LinkCatOther { get; set; } = true;
+
+    /// <summary>同链接重复提醒间隔（分钟，0=不限）</summary>
+    public int LinkDedupMinutes { get; set; } = 10;
+
     /// <summary>
     /// Schema 版本号
     /// </summary>

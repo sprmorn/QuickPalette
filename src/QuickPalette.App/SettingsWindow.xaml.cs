@@ -309,6 +309,29 @@ public partial class SettingsWindow : Window
             TopmostHotkeyRecorder.RegisteredHotkey = _settings.TopmostHotkey;
             UsbAssistantCheckBox.IsChecked = _settings.UsbAssistantEnabled;
 
+            // 小助手：链接助手
+            LinkAssistantCheckBox.IsChecked = _settings.LinkAssistantEnabled;
+            LinkCatMeetingCheckBox.IsChecked = _settings.LinkCatMeeting;
+            LinkCatRemoteCheckBox.IsChecked = _settings.LinkCatRemote;
+            LinkCatCloudCheckBox.IsChecked = _settings.LinkCatCloud;
+            LinkCatDownloadCheckBox.IsChecked = _settings.LinkCatDownload;
+            LinkCatMediaCheckBox.IsChecked = _settings.LinkCatMedia;
+            LinkCatWebCheckBox.IsChecked = _settings.LinkCatWeb;
+            LinkCatOtherCheckBox.IsChecked = _settings.LinkCatOther;
+            foreach (ComboBoxItem item in LinkDedupBox.Items)
+            {
+                if ((item.Tag as string) == _settings.LinkDedupMinutes.ToString())
+                {
+                    LinkDedupBox.SelectedItem = item;
+                    break;
+                }
+            }
+
+            if (LinkDedupBox.SelectedItem == null)
+            {
+                LinkDedupBox.SelectedIndex = 1;
+            }
+
             // 主题单选回显
             var theme = _settings.Theme?.Trim().ToLowerInvariant();
             ThemeLight.IsChecked = theme == "light";
@@ -990,6 +1013,20 @@ public partial class SettingsWindow : Window
                 ? "Alt+F"
                 : TopmostHotkeyRecorder.Hotkey.Trim();
             _settings.UsbAssistantEnabled = UsbAssistantCheckBox.IsChecked == true;
+
+            // 小助手：链接助手
+            _settings.LinkAssistantEnabled = LinkAssistantCheckBox.IsChecked == true;
+            _settings.LinkCatMeeting = LinkCatMeetingCheckBox.IsChecked == true;
+            _settings.LinkCatRemote = LinkCatRemoteCheckBox.IsChecked == true;
+            _settings.LinkCatCloud = LinkCatCloudCheckBox.IsChecked == true;
+            _settings.LinkCatDownload = LinkCatDownloadCheckBox.IsChecked == true;
+            _settings.LinkCatMedia = LinkCatMediaCheckBox.IsChecked == true;
+            _settings.LinkCatWeb = LinkCatWebCheckBox.IsChecked == true;
+            _settings.LinkCatOther = LinkCatOtherCheckBox.IsChecked == true;
+            if (int.TryParse((LinkDedupBox.SelectedItem as ComboBoxItem)?.Tag as string, out var dedupMinutes))
+            {
+                _settings.LinkDedupMinutes = dedupMinutes;
+            }
 
             // 热键一致性：保存时统一注册 _settings.Hotkey；
             // 注册失败则中止保存（避免运行注册与 settings.json 不一致）
