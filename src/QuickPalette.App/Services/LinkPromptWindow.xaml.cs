@@ -21,6 +21,8 @@ public partial class LinkPromptWindow : Window
     private readonly LinkSuggestion _suggestion;
     private readonly Action<LinkSuggestion>? _onOpen;
     private readonly DispatcherTimer _autoClose;
+    private bool _codeCopied;
+    private bool _passwordCopied;
 
     public LinkPromptWindow(ILogger logger, LinkSuggestion suggestion, Action<LinkSuggestion>? onOpen = null)
     {
@@ -121,8 +123,9 @@ public partial class LinkPromptWindow : Window
         {
             UrlText.Text = $"已打开{_suggestion.TargetApp} · 复制下方{_suggestion.CodeLabel}/{_suggestion.PasswordLabel}粘贴";
             _autoClose.Stop();
-            _autoClose.Interval = TimeSpan.FromSeconds(60); // 给足粘贴时间
+            _autoClose.Interval = TimeSpan.FromSeconds(30); // 硬兜底
             _autoClose.Start();
+            MaybeFinishAfterCopy(); // 已复制过就直接收
             return;
         }
 
@@ -137,7 +140,9 @@ public partial class LinkPromptWindow : Window
         if (!string.IsNullOrEmpty(_suggestion.Code))
         {
             Clipboard.SetText(_suggestion.Code);
+            _codeCopied = true;
             _logger.Information("Link code copied");
+            MaybeFinishAfterCopy();
         }
     }
 
@@ -147,8 +152,25 @@ public partial class LinkPromptWindow : Window
         if (!string.IsNullOrEmpty(_suggestion.Password))
         {
             Clipboard.SetText(_suggestion.Password);
+            _passwordCopied = true;
             _logger.Information("Link password copied");
+            MaybeFinishAfterCopy();
         }
+    }
+
+    /// <summary>该复制的都复制完了 → 2 秒后自动收起（不劳手动关）</summary>
+    private void MaybeFinishAfterCopy()
+    {
+        var needPassword = !string.IsNullOrEmpty(_suggestion.Password);
+        if (!_codeCopied || (needPassword && !_passwordCopied))
+        {
+            return;
+        }
+
+        UrlText.Text = "已复制完成 ✓";
+        _autoClose.Stop();
+        _autoClose.Interval = TimeSpan.FromSeconds(2);
+        _autoClose.Start();
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
