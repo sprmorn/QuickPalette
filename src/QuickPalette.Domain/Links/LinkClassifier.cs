@@ -28,7 +28,7 @@ public enum LinkCategory
 }
 
 /// <summary>一条识别结果：类目 + 目标应用 + 实际跳转 URI + 展示信息；
-/// Code/Password 用于"口令与密码分开复制"的提示卡（如 UU远程协助口令）。</summary>
+/// Code/Password 用于"口令与密码分开复制"的提示卡（如 UU远程的设备ID/设备验证码）。</summary>
 public sealed record LinkSuggestion(
     LinkCategory Category,
     string TargetApp,
@@ -36,7 +36,9 @@ public sealed record LinkSuggestion(
     string DisplayText,
     string IconKey,
     string? Code = null,
-    string? Password = null);
+    string? Password = null,
+    string CodeLabel = "口令",
+    string PasswordLabel = "密码");
 
 /// <summary>
 /// 剪贴板链接识别器（纯逻辑，无副作用）：
@@ -69,9 +71,11 @@ public static partial class LinkClassifier
             }
         }
 
-        // 口令识别（会议号 / 远程 ID）：纯文本形态
+        // 口令识别（会议号 / 远程 ID）：纯文本形态。
+        // 同类目时口令优先（官方分享常"链接 + 设备ID + 验证码"混排，口令卡更可操作）
         var code = ClassifyCode(text);
-        if (code != null && (best == null || code.Category < best.Category))
+        if (code != null && (best == null || code.Category < best.Category ||
+                             (code.Category == best.Category && best.Code == null)))
         {
             best = code;
         }
@@ -91,9 +95,13 @@ public static partial class LinkClassifier
     [GeneratedRegex(@"(?:rustdesk|RustDesk)[^\w]{0,12}([0-9A-Za-z]{6,12})")]
     private static partial Regex RustDeskCodeRegex();
 
-    /// <summary>UU远程协助口令（"口令/协助码/识别码"上下文）</summary>
-    [GeneratedRegex(@"(?:协助口令|口令|协助码|识别码)[^\w]{0,4}([0-9A-Za-z]{4,12})")]
+    /// <summary>UU远程设备 ID（官方分享格式"设备ID：xxxx"，兼容"口令/协助码/识别码"旧称）</summary>
+    [GeneratedRegex(@"(?:设备\s*ID|协助口令|口令|协助码|识别码)[^\w]{0,4}([0-9A-Za-z]{4,12})", RegexOptions.IgnoreCase)]
     private static partial Regex UuCodeRegex();
+
+    /// <summary>UU远程设备验证码（官方分享格式"设备验证码：xxxx"，兼容"密码"旧称）</summary>
+    [GeneratedRegex(@"(?:设备验证码|验证码|密码|password|pw)[^\w]{0,4}([0-9A-Za-z]{4,12})", RegexOptions.IgnoreCase)]
+    private static partial Regex UuPasswordRegex();
 
     /// <summary>远程口令中的密码段（ToDesk/UU远程等；只认"密码"，"口令"是码不是密码）</summary>
     [GeneratedRegex(@"(?:密码|password|pw)[^\w]{0,4}([a-zA-Z0-9]{4,8})")]
@@ -167,21 +175,23 @@ public static partial class LinkClassifier
             }
         }
 
-        // ---- UU远程协助口令：拉起客户端主界面，口令/密码放提示卡分开复制 ----
+        // ---- UU远程协助口令：拉起客户端主界面，设备ID/验证码放提示卡分开复制 ----
         if (lower.Contains("uu远程") || lower.Contains("uuremote") || (lower.Contains("uu") && lower.Contains("远程")))
         {
             var code = UuCodeRegex().Match(text);
             if (code.Success)
             {
-                var pw = PasswordRegex().Match(text);
+                var pw = UuPasswordRegex().Match(text);
                 return new LinkSuggestion(
                     LinkCategory.Remote,
                     "UU远程",
                     "uuremote://",
-                    $"{code.Groups[1].Value}{(pw.Success ? $"（密码 {pw.Groups[1].Value}）" : string.Empty)}",
+                    "远程协助 · 打开 UU远程「开始协助」并粘贴",
                     "link-remote",
                     code.Groups[1].Value,
-                    pw.Success ? pw.Groups[1].Value : null);
+                    pw.Success ? pw.Groups[1].Value : null,
+                    "设备ID",
+                    "验证码");
             }
         }
 

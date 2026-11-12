@@ -41,11 +41,11 @@ public partial class LinkPromptWindow : Window
         if (!string.IsNullOrEmpty(suggestion.Code))
         {
             CodePanel.Visibility = Visibility.Visible;
-            CodeText.Text = suggestion.Code;
+            CodeText.Text = $"{suggestion.CodeLabel} {suggestion.Code}";
             CopyCodeIconHost.Content = ToolbarIcons.Create("copy", 13, Brushes.Gainsboro);
             if (!string.IsNullOrEmpty(suggestion.Password))
             {
-                PasswordText.Text = suggestion.Password;
+                PasswordText.Text = $"{suggestion.PasswordLabel} {suggestion.Password}";
                 CopyPasswordIconHost.Content = ToolbarIcons.Create("copy", 13, Brushes.Gainsboro);
             }
             else
@@ -120,7 +120,7 @@ public partial class LinkPromptWindow : Window
 
     private void Ignore_Click(object sender, RoutedEventArgs e) => Close();
 
-    /// <summary>复制口令（独立复制，对应口令输入框）</summary>
+    /// <summary>复制口令/设备ID（独立复制，对应口令输入框）</summary>
     private void CopyCode_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_suggestion.Code))
@@ -130,7 +130,7 @@ public partial class LinkPromptWindow : Window
         }
     }
 
-    /// <summary>复制密码（独立复制，对应密码输入框）</summary>
+    /// <summary>复制密码/验证码（独立复制，对应密码输入框）</summary>
     private void CopyPassword_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(_suggestion.Password))

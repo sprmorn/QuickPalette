@@ -213,4 +213,36 @@ public class LinkClassifierTests
         Assert.Equal("AB12CD", result.Code);
         Assert.Null(result.Password);
     }
+
+    [Fact]
+    public void UU_Official_Share_Format_Prefers_Code_Over_Invite_Link()
+    {
+        // 官方分享原文：链接 + 设备ID + 设备验证码混排 → 优先口令卡（可复制、拉起客户端）
+        var text = """
+                   【网易UU远程】完整复制本消息，打开 UU远程「开始协助」即可对我发起远程协助
+                   设备ID：611211657
+                   设备验证码：Z1R6U79M
+                   点击链接可直接发起远程协助：https://uuyc.163.com/invite/ed41f433ae79447d96bdb41fea90d3cb
+                   """;
+
+        var result = LinkClassifier.Classify(text);
+
+        Assert.NotNull(result);
+        Assert.Equal("UU远程", result.TargetApp);
+        Assert.Equal("uuremote://", result.LaunchUri);
+        Assert.Equal("611211657", result.Code);
+        Assert.Equal("Z1R6U79M", result.Password);
+        Assert.Equal("设备ID", result.CodeLabel);
+        Assert.Equal("验证码", result.PasswordLabel);
+    }
+
+    [Fact]
+    public void UU_Invite_Link_Only_Still_Classified_As_UU()
+    {
+        var result = LinkClassifier.Classify("https://uuyc.163.com/invite/ed41f433ae79447d96bdb41fea90d3cb");
+
+        Assert.NotNull(result);
+        Assert.Equal("UU远程", result.TargetApp);
+        Assert.Null(result.Code); // 只有链接时没有口令芯片
+    }
 }
