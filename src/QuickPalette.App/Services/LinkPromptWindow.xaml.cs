@@ -115,6 +115,17 @@ public partial class LinkPromptWindow : Window
             _logger.Warning(ex, "Link prompt open callback failed");
         }
 
+        // 带口令/验证码芯片的卡（如 UU远程）：拉起客户端后仍需复制粘贴 → 保留卡片
+        //（其他情况即点即关）
+        if (!string.IsNullOrEmpty(_suggestion.Code))
+        {
+            UrlText.Text = $"已打开{_suggestion.TargetApp} · 复制下方{_suggestion.CodeLabel}/{_suggestion.PasswordLabel}粘贴";
+            _autoClose.Stop();
+            _autoClose.Interval = TimeSpan.FromSeconds(60); // 给足粘贴时间
+            _autoClose.Start();
+            return;
+        }
+
         Close();
     }
 
