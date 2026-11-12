@@ -1148,18 +1148,23 @@
                 <TabItem x:Name="TabAboutItem" Header="🎀 关于">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="20" HorizontalAlignment="Center">
-                            <!-- 产品横版 Logo -->
-                            <Image x:Name="ProductLogoImage"
-                                   Source="Assets/productlogo.png"
-                                   MaxWidth="320"
-                                   Margin="0,24,0,18"
-                                   RenderOptions.BitmapScalingMode="HighQuality"/>
-
-                            <Image x:Name="AboutImage"
-                                   Source="Assets/about.png"
-                                   MaxWidth="260"
-                                   Margin="0,0,0,16"
-                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <!-- 双 Logo 并排（等高）：左产品 / 浅色分隔线 / 右品牌 -->
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Center"
+                                        Margin="0,24,0,20">
+                                <Image x:Name="ProductLogoImage"
+                                       Source="Assets/productlogo.png"
+                                       Height="88"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <Border Width="1"
+                                        Height="64"
+                                        Background="{DynamicResource BgTabBorder}"
+                                        Margin="26,0"/>
+                                <Image x:Name="AboutImage"
+                                       Source="Assets/about.png"
+                                       Height="88"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </StackPanel>
 
                             <TextBlock Text="春晨制品"
                                        Foreground="{DynamicResource TextPrimary}"
