@@ -112,7 +112,7 @@ public static partial class LinkClassifier
         }
 
         // ---- 远程控制 ----
-        if (lower.StartsWith("uuremote://"))
+        if (lower.StartsWith("uuremote://") || host is "uuyc.163.com" or "uuremote.163.com" or "uu.163.com" or "www.uuyc.163.com")
         {
             return Make(LinkCategory.Remote, "UU远程", url, "link-remote");
         }

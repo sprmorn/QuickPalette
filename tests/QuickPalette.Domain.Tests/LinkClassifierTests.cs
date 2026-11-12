@@ -24,6 +24,8 @@ public class LinkClassifierTests
 
     [Theory]
     [InlineData("uuremote://external/device/control?anonymous_device_id=x", "UU远程")]
+    [InlineData("https://uuyc.163.com/invite/ed41f433ae79447d96bdb41fea90d3cb", "UU远程")]
+    [InlineData("https://uuremote.163.com/xxx", "UU远程")]
     [InlineData("todesk://remote?cid=123456789", "ToDesk")]
     [InlineData("https://get.teamviewer.com/xxxxxx", "TeamViewer")]
     [InlineData("anydesk://123456789", "AnyDesk")]
