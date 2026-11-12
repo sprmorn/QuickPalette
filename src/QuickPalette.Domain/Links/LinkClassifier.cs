@@ -27,13 +27,16 @@ public enum LinkCategory
     Other,
 }
 
-/// <summary>一条识别结果：类目 + 目标应用 + 实际跳转 URI + 展示信息</summary>
+/// <summary>一条识别结果：类目 + 目标应用 + 实际跳转 URI + 展示信息；
+/// Code/Password 用于"口令与密码分开复制"的提示卡（如 UU远程协助口令）。</summary>
 public sealed record LinkSuggestion(
     LinkCategory Category,
     string TargetApp,
     string LaunchUri,
     string DisplayText,
-    string IconKey);
+    string IconKey,
+    string? Code = null,
+    string? Password = null);
 
 /// <summary>
 /// 剪贴板链接识别器（纯逻辑，无副作用）：
@@ -81,11 +84,19 @@ public static partial class LinkClassifier
     private static partial Regex GroupedMeetingCodeRegex();
 
     /// <summary>关键词上下文里的数字口令（会议号/远程 ID）</summary>
-    [GeneratedRegex(@"(?:会议号|入会|腾讯会议|meeting\s*id|todesk|ToDesk|anydesk|AnyDesk)[^\d]{0,12}(\d[\d\s-]{6,14}\d)")]
+    [GeneratedRegex(@"(?:会议号|入会|腾讯会议|meeting\s*id|todesk|ToDesk|anydesk|AnyDesk|teamviewer|TeamViewer)[^\d]{0,12}(\d[\d\s-]{6,14}\d)")]
     private static partial Regex KeywordCodeRegex();
 
-    /// <summary>远程口令中的密码段（ToDesk 等）</summary>
-    [GeneratedRegex(@"(?:密码|password|pw|口令)[^\w]{0,4}([a-zA-Z0-9]{4,8})")]
+    /// <summary>RustDesk ID（6-12 位字母数字）</summary>
+    [GeneratedRegex(@"(?:rustdesk|RustDesk)[^\w]{0,12}([0-9A-Za-z]{6,12})")]
+    private static partial Regex RustDeskCodeRegex();
+
+    /// <summary>UU远程协助口令（"口令/协助码/识别码"上下文）</summary>
+    [GeneratedRegex(@"(?:协助口令|口令|协助码|识别码)[^\w]{0,4}([0-9A-Za-z]{4,12})")]
+    private static partial Regex UuCodeRegex();
+
+    /// <summary>远程口令中的密码段（ToDesk/UU远程等；只认"密码"，"口令"是码不是密码）</summary>
+    [GeneratedRegex(@"(?:密码|password|pw)[^\w]{0,4}([a-zA-Z0-9]{4,8})")]
     private static partial Regex PasswordRegex();
 
     /// <summary>口令识别（会议号 / ToDesk ID / AnyDesk 地址）。
@@ -128,6 +139,49 @@ public static partial class LinkClassifier
                 {
                     return Make(LinkCategory.Remote, "AnyDesk", $"anydesk://{digits}", "link-remote");
                 }
+            }
+        }
+
+        // ---- TeamViewer：关键词 + 9-10 位 ID（官方 invite 页同款 URI 格式）----
+        if (lower.Contains("teamviewer"))
+        {
+            var idMatch = KeywordCodeRegex().Match(text);
+            if (idMatch.Success)
+            {
+                var digits = Regex.Replace(idMatch.Groups[1].Value, @"[\s-]", "");
+                if (digits.Length is >= 9 and <= 10)
+                {
+                    return Make(LinkCategory.Remote, "TeamViewer",
+                        $"teamviewer10://contact?s={digits}&signin=true", "link-remote");
+                }
+            }
+        }
+
+        // ---- RustDesk：关键词 + ID（6-12 位）→ rustdesk://ID ----
+        if (lower.Contains("rustdesk"))
+        {
+            var idMatch = RustDeskCodeRegex().Match(text);
+            if (idMatch.Success)
+            {
+                return Make(LinkCategory.Remote, "RustDesk", $"rustdesk://{idMatch.Groups[1].Value}", "link-remote");
+            }
+        }
+
+        // ---- UU远程协助口令：拉起客户端主界面，口令/密码放提示卡分开复制 ----
+        if (lower.Contains("uu远程") || lower.Contains("uuremote") || (lower.Contains("uu") && lower.Contains("远程")))
+        {
+            var code = UuCodeRegex().Match(text);
+            if (code.Success)
+            {
+                var pw = PasswordRegex().Match(text);
+                return new LinkSuggestion(
+                    LinkCategory.Remote,
+                    "UU远程",
+                    "uuremote://",
+                    $"{code.Groups[1].Value}{(pw.Success ? $"（密码 {pw.Groups[1].Value}）" : string.Empty)}",
+                    "link-remote",
+                    code.Groups[1].Value,
+                    pw.Success ? pw.Groups[1].Value : null);
             }
         }
 

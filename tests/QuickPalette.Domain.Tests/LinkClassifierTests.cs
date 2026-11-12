@@ -169,4 +169,48 @@ public class LinkClassifierTests
         Assert.Equal(LinkCategory.Remote, result.Category);
         Assert.Equal("AnyDesk", result.TargetApp);
     }
+
+    [Theory]
+    [InlineData("TeamViewer ID：987 654 321")]
+    [InlineData("teamviewer 123456789")]
+    public void TeamViewer_Code_Text_Classified(string text)
+    {
+        var result = LinkClassifier.Classify(text);
+
+        Assert.NotNull(result);
+        Assert.Equal("TeamViewer", result.TargetApp);
+        Assert.StartsWith("teamviewer10://", result.LaunchUri);
+    }
+
+    [Fact]
+    public void RustDesk_Code_Text_Classified()
+    {
+        var result = LinkClassifier.Classify("RustDesk：987654321");
+
+        Assert.NotNull(result);
+        Assert.Equal("RustDesk", result.TargetApp);
+        Assert.Equal("rustdesk://987654321", result.LaunchUri);
+    }
+
+    [Fact]
+    public void UU_Code_Text_Carries_Code_And_Password()
+    {
+        var result = LinkClassifier.Classify("UU远程 协助口令 123456 密码 ab12");
+
+        Assert.NotNull(result);
+        Assert.Equal("UU远程", result.TargetApp);
+        Assert.Equal("uuremote://", result.LaunchUri); // 拉起客户端主界面
+        Assert.Equal("123456", result.Code);
+        Assert.Equal("ab12", result.Password);
+    }
+
+    [Fact]
+    public void UU_Code_Without_Password_Ok()
+    {
+        var result = LinkClassifier.Classify("uu远程口令：AB12CD");
+
+        Assert.NotNull(result);
+        Assert.Equal("AB12CD", result.Code);
+        Assert.Null(result.Password);
+    }
 }

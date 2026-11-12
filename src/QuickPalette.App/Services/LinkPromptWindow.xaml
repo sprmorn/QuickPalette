@@ -45,6 +45,21 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <!-- 小复制按钮样式 -->
+        <Style x:Key="CopyIconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Border Background="#F52B3446"
@@ -105,6 +120,36 @@
                     <ContentControl x:Name="IgnoreIconHost" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="12,0"/>
                 </Button>
             </Grid>
+
+            <!-- 口令/密码：分开复制（对应不同输入框） -->
+            <StackPanel x:Name="CodePanel" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed">
+                <Border x:Name="CodeChip" Background="#2EFFFFFF" CornerRadius="6" Padding="8,3,3,3" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="CodeText"
+                                   Foreground="White"
+                                   FontSize="12"
+                                   FontFamily="Consolas"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,4,0"/>
+                        <Button Style="{StaticResource CopyIconButtonStyle}" ToolTip="复制口令" Click="CopyCode_Click">
+                            <ContentControl x:Name="CopyCodeIconHost" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="PasswordChip" Background="#2EFFFFFF" CornerRadius="6" Padding="8,3,3,3">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="PasswordText"
+                                   Foreground="White"
+                                   FontSize="12"
+                                   FontFamily="Consolas"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,4,0"/>
+                        <Button Style="{StaticResource CopyIconButtonStyle}" ToolTip="复制密码" Click="CopyPassword_Click">
+                            <ContentControl x:Name="CopyPasswordIconHost" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
         </StackPanel>
     </Border>
 </Window>

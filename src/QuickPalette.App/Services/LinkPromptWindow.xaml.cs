@@ -37,6 +37,23 @@ public partial class LinkPromptWindow : Window
         AppText.Text = suggestion.TargetApp;
         UrlText.Text = Truncate(suggestion.DisplayText, 42);
 
+        // 口令/密码分开显示、分开复制（对应不同输入框）
+        if (!string.IsNullOrEmpty(suggestion.Code))
+        {
+            CodePanel.Visibility = Visibility.Visible;
+            CodeText.Text = suggestion.Code;
+            CopyCodeIconHost.Content = ToolbarIcons.Create("copy", 13, Brushes.Gainsboro);
+            if (!string.IsNullOrEmpty(suggestion.Password))
+            {
+                PasswordText.Text = suggestion.Password;
+                CopyPasswordIconHost.Content = ToolbarIcons.Create("copy", 13, Brushes.Gainsboro);
+            }
+            else
+            {
+                PasswordChip.Visibility = Visibility.Collapsed;
+            }
+        }
+
         Loaded += (_, _) => PositionTopRight();
         SourceInitialized += (_, _) =>
         {
@@ -102,6 +119,26 @@ public partial class LinkPromptWindow : Window
     }
 
     private void Ignore_Click(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>复制口令（独立复制，对应口令输入框）</summary>
+    private void CopyCode_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_suggestion.Code))
+        {
+            Clipboard.SetText(_suggestion.Code);
+            _logger.Information("Link code copied");
+        }
+    }
+
+    /// <summary>复制密码（独立复制，对应密码输入框）</summary>
+    private void CopyPassword_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_suggestion.Password))
+        {
+            Clipboard.SetText(_suggestion.Password);
+            _logger.Information("Link password copied");
+        }
+    }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
