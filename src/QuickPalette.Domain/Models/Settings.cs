@@ -166,6 +166,9 @@ public class Settings
     /// <summary>同链接重复提醒间隔（分钟，0=不限）</summary>
     public int LinkDedupMinutes { get; set; } = 10;
 
+    /// <summary>智能直跳：轻量嗅探邀请页提取真实协议直接打开客户端（失败自动回退浏览器）</summary>
+    public bool LinkSmartJump { get; set; } = true;
+
     /// <summary>
     /// Schema 版本号
     /// </summary>

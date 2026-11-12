@@ -717,7 +717,11 @@
                                     </ComboBox>
                                 </StackPanel>
 
-                                <TextBlock Text="提示：没复制东西不会弹；同一链接按间隔去重（网页链接同域名 5 分钟只弹一次）；目标软件未安装时不提示。"
+                                <CheckBox x:Name="LinkSmartJumpCheckBox"
+                                          Content="智能直跳：解析邀请页直接打开客户端（失败自动回退浏览器）"
+                                          Margin="0,0,0,8"/>
+
+                                <TextBlock Text="提示：没复制东西不会弹；同一链接按间隔去重（网页链接同域名 5 分钟只弹一次）；目标软件未安装时不提示。智能直跳会向复制的链接发起一次限时轻量请求（1.5 秒内）以提取真实协议，可在上方关闭。"
                                            Foreground="{DynamicResource AccentTextBrush}"
                                            FontSize="12"
                                            TextWrapping="Wrap"/>

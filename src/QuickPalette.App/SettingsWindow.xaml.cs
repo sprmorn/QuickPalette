@@ -332,6 +332,8 @@ public partial class SettingsWindow : Window
                 LinkDedupBox.SelectedIndex = 1;
             }
 
+            LinkSmartJumpCheckBox.IsChecked = _settings.LinkSmartJump;
+
             // 主题单选回显
             var theme = _settings.Theme?.Trim().ToLowerInvariant();
             ThemeLight.IsChecked = theme == "light";
@@ -1027,6 +1029,8 @@ public partial class SettingsWindow : Window
             {
                 _settings.LinkDedupMinutes = dedupMinutes;
             }
+
+            _settings.LinkSmartJump = LinkSmartJumpCheckBox.IsChecked == true;
 
             // 热键一致性：保存时统一注册 _settings.Hotkey；
             // 注册失败则中止保存（避免运行注册与 settings.json 不一致）

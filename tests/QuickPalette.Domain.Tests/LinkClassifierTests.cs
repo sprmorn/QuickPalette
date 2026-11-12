@@ -122,4 +122,51 @@ public class LinkClassifierTests
         Assert.NotNull(result);
         Assert.Equal(LinkCategory.Meeting, result.Category);
     }
+
+    // ---------- 口令识别 ----------
+
+    [Theory]
+    [InlineData("腾讯会议：123-456-789")]
+    [InlineData("会议号 123 456 789 请大家准时参加")]
+    [InlineData("入会链接没发，会议号是 987654321")]
+    public void Meeting_Code_Text_Classified(string text)
+    {
+        var result = LinkClassifier.Classify(text);
+
+        Assert.NotNull(result);
+        Assert.Equal(LinkCategory.Meeting, result.Category);
+        Assert.Equal("腾讯会议", result.TargetApp);
+        Assert.StartsWith("wemeet://", result.LaunchUri);
+    }
+
+    [Fact]
+    public void Bare_Digits_Not_Matched_Without_Context()
+    {
+        // 手机号/单号等裸数字串不能误报
+        Assert.Null(LinkClassifier.Classify("我的电话是13812345678"));
+        Assert.Null(LinkClassifier.Classify("订单号 2026111212345678"));
+    }
+
+    [Theory]
+    [InlineData("ToDesk ID：123 456 789，密码：ab12")]
+    [InlineData("todesk 设备码 987654321 密码 xyz9")]
+    public void ToDesk_Code_Text_Classified(string text)
+    {
+        var result = LinkClassifier.Classify(text);
+
+        Assert.NotNull(result);
+        Assert.Equal(LinkCategory.Remote, result.Category);
+        Assert.Equal("ToDesk", result.TargetApp);
+        Assert.StartsWith("todesk://connect&", result.LaunchUri);
+    }
+
+    [Fact]
+    public void AnyDesk_Code_Text_Classified()
+    {
+        var result = LinkClassifier.Classify("AnyDesk 地址：987 654 321");
+
+        Assert.NotNull(result);
+        Assert.Equal(LinkCategory.Remote, result.Category);
+        Assert.Equal("AnyDesk", result.TargetApp);
+    }
 }

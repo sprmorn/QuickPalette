@@ -46,8 +46,8 @@ public static partial class LinkClassifier
     [GeneratedRegex(@"(?:https?|magnet|ed2k|thunder|ftp|uuremote|wemeet|todesk|teamviewer|anydesk|rustdesk|sunlogin|dingtalk|feishu|lark|wxwork|zoommtg|msteams|qqmusic|orpheus|kugou|steam|tencent|mailto|tel|aliyundrive|baiduwp):[^\s""'<>\)\（\）。，；！？]+", RegexOptions.IgnoreCase)]
     private static partial Regex LinkRegex();
 
-    /// <summary>识别文本中的链接；无可识别链接返回 null。
-    /// 多条链接时按类目优先级（会议 &gt; 远程 &gt; 网盘 &gt; 下载 &gt; 影音 &gt; 网页 &gt; 其他）取最高的。</summary>
+    /// <summary>识别文本中的链接与口令；无可识别目标返回 null。
+    /// 多条时按类目优先级（会议 &gt; 远程 &gt; 网盘 &gt; 下载 &gt; 影音 &gt; 网页 &gt; 其他）取最高的。</summary>
     public static LinkSuggestion? Classify(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -66,7 +66,94 @@ public static partial class LinkClassifier
             }
         }
 
+        // 口令识别（会议号 / 远程 ID）：纯文本形态
+        var code = ClassifyCode(text);
+        if (code != null && (best == null || code.Category < best.Category))
+        {
+            best = code;
+        }
+
         return best;
+    }
+
+    /// <summary>分组会议号：123-456-789 / 123 456 789（形如即可识别，无需关键词）</summary>
+    [GeneratedRegex(@"\b(\d{3})[-\s](\d{3,4})[-\s](\d{3,4})\b")]
+    private static partial Regex GroupedMeetingCodeRegex();
+
+    /// <summary>关键词上下文里的数字口令（会议号/远程 ID）</summary>
+    [GeneratedRegex(@"(?:会议号|入会|腾讯会议|meeting\s*id|todesk|ToDesk|anydesk|AnyDesk)[^\d]{0,12}(\d[\d\s-]{6,14}\d)")]
+    private static partial Regex KeywordCodeRegex();
+
+    /// <summary>远程口令中的密码段（ToDesk 等）</summary>
+    [GeneratedRegex(@"(?:密码|password|pw|口令)[^\w]{0,4}([a-zA-Z0-9]{4,8})")]
+    private static partial Regex PasswordRegex();
+
+    /// <summary>口令识别（会议号 / ToDesk ID / AnyDesk 地址）。
+    /// 防误报原则：裸数字串（手机号/单号）一律不认——必须"分组格式"或"关键词上下文"。</summary>
+    public static LinkSuggestion? ClassifyCode(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var lower = text.ToLowerInvariant();
+
+        // ---- ToDesk：关键词 + 设备码（8-11 位）+ 可选密码 ----
+        if (lower.Contains("todesk"))
+        {
+            var idMatch = KeywordCodeRegex().Match(text);
+            if (idMatch.Success)
+            {
+                var digits = Regex.Replace(idMatch.Groups[1].Value, @"[\s-]", "");
+                if (digits.Length is >= 8 and <= 11)
+                {
+                    var pw = PasswordRegex().Match(text);
+                    var uri = pw.Success
+                        ? $"todesk://connect&{digits}&{pw.Groups[1].Value}&"
+                        : $"todesk://connect&{digits}&&";
+                    return Make(LinkCategory.Remote, "ToDesk", uri, "link-remote");
+                }
+            }
+        }
+
+        // ---- AnyDesk：关键词 + 9-11 位地址 ----
+        if (lower.Contains("anydesk"))
+        {
+            var idMatch = KeywordCodeRegex().Match(text);
+            if (idMatch.Success)
+            {
+                var digits = Regex.Replace(idMatch.Groups[1].Value, @"[\s-]", "");
+                if (digits.Length is >= 9 and <= 11)
+                {
+                    return Make(LinkCategory.Remote, "AnyDesk", $"anydesk://{digits}", "link-remote");
+                }
+            }
+        }
+
+        // ---- 腾讯会议号：分组格式（123-456-789）直接认 ----
+        var grouped = GroupedMeetingCodeRegex().Match(text);
+        if (grouped.Success)
+        {
+            var digits = grouped.Groups[1].Value + grouped.Groups[2].Value + grouped.Groups[3].Value;
+            return Make(LinkCategory.Meeting, "腾讯会议", $"wemeet://page/inmeeting?meeting_code={digits}", "link-meeting");
+        }
+
+        // ---- 会议号关键词上下文（9-11 位数字）----
+        if (lower.Contains("会议") || lower.Contains("入会") || lower.Contains("meeting"))
+        {
+            var idMatch = KeywordCodeRegex().Match(text);
+            if (idMatch.Success)
+            {
+                var digits = Regex.Replace(idMatch.Groups[1].Value, @"[\s-]", "");
+                if (digits.Length is >= 9 and <= 11)
+                {
+                    return Make(LinkCategory.Meeting, "腾讯会议", $"wemeet://page/inmeeting?meeting_code={digits}", "link-meeting");
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>对单条 URL 分类</summary>

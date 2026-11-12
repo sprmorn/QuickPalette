@@ -16,6 +16,7 @@ public sealed class LinkAssistantService : IDisposable
     private readonly ILogger _logger;
     private readonly ClipboardLinkMonitor _monitor;
     private readonly Dictionary<string, DateTime> _recent = new();
+    private readonly Dictionary<string, Task<string?>> _resolves = new();
     private Settings _settings = new();
 
     public LinkAssistantService(ILogger logger)
@@ -60,13 +61,77 @@ public sealed class LinkAssistantService : IDisposable
                 return;
             }
 
-            var prompt = new LinkPromptWindow(_logger, suggestion, onOpen: s => LinkLauncher.Launch(s.LaunchUri, _logger));
+            StartSmartResolve(suggestion);
+            var prompt = new LinkPromptWindow(_logger, suggestion, onOpen: s => _ = OpenSmartAsync(s));
             prompt.Show();
             _logger.Information("Link prompt shown: {Category} {App}", suggestion.Category, suggestion.TargetApp);
         }
         catch (Exception ex)
         {
             _logger.Warning(ex, "Link assistant handling failed");
+        }
+    }
+
+    /// <summary>智能直跳：先用后台嗅探结果（真实协议）；超时/未命中/失败回退浏览器打开原链接</summary>
+    private async Task OpenSmartAsync(LinkSuggestion suggestion)
+    {
+        var uri = suggestion.LaunchUri;
+        try
+        {
+            Task<string?>? pending = null;
+            lock (_resolves)
+            {
+                _resolves.TryGetValue(uri, out pending);
+            }
+
+            if (pending != null)
+            {
+                // 极值兜底：最多再等 2s，还没结果就走浏览器
+                var done = await Task.WhenAny(pending, Task.Delay(2000));
+                if (done == pending && !string.IsNullOrEmpty(pending.Result))
+                {
+                    uri = pending.Result!;
+                    _logger.Information("Smart jump to scheme: {Uri}", uri);
+                }
+                else
+                {
+                    _logger.Information("Smart jump timeout/none, fallback to browser: {Url}", uri);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(ex, "Smart jump failed, fallback to browser");
+        }
+
+        LinkLauncher.Launch(uri, _logger);
+    }
+
+    /// <summary>提示卡出现即后台开始嗅探邀请页（限时 1.5s，失败静默）</summary>
+    private void StartSmartResolve(LinkSuggestion suggestion)
+    {
+        if (!_settings.LinkSmartJump)
+        {
+            return;
+        }
+
+        if (!suggestion.LaunchUri.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (suggestion.Category is not (LinkCategory.Meeting or LinkCategory.Remote or LinkCategory.CloudDisk))
+        {
+            return;
+        }
+
+        lock (_resolves)
+        {
+            if (!_resolves.ContainsKey(suggestion.LaunchUri))
+            {
+                _resolves[suggestion.LaunchUri] =
+                    SmartLinkResolver.ResolveAsync(suggestion.LaunchUri, _logger);
+            }
         }
     }
 
