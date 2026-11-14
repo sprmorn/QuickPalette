@@ -58,12 +58,33 @@ public sealed class Mp4SinkWriter : IDisposable
 
         MfNative.SinkSetInputMediaType(_writer, _videoStream, videoIn);
 
-        // ---- 音频：输出 AAC ← 输入 PCM16（输出仅 major+subtype，多余属性会被编码器拒收）----
+        // ---- 音频：输出 AAC ← 输入 PCM16（配方对照 openscreen：全属性但**不设**
+        // MF_MT_AAC_AUDIO_PROFILE_LEVEL_INDICATION（实测它是毒，设了协商必拒）；码率 192kbps ----
         if (_hasAudio)
         {
             MfNative.MFCreateMediaType(out var audioOut);
             MfNative.SetGuid(audioOut, MfGuids.MajorType, MfGuids.MediaTypeAudio);
             MfNative.SetGuid(audioOut, MfGuids.Subtype, MfGuids.AudioFormatAac);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioBitsPerSample, 16);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioSamplesPerSecond, (uint)audioSampleRate);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioNumChannels, 2);
+            var aacBytes = int.TryParse(Environment.GetEnvironmentVariable("QP_AAC_BYTES"), out var ab) ? ab : 24000;
+            var combo = Environment.GetEnvironmentVariable("QP_AAC_COMBO") ?? "none";
+            if (combo is "avg" or "avgpayload" or "full")
+            {
+                MfNative.SetUInt32(audioOut, MfGuids.AudioAvgBytesPerSecond, (uint)aacBytes);
+            }
+
+            if (combo is "payload" or "avgpayload" or "full")
+            {
+                MfNative.SetUInt32(audioOut, MfGuids.AacPayloadType, 0);
+            }
+
+            if (combo == "full")
+            {
+                MfNative.SetUInt32(audioOut, MfGuids.AacProfileLevel, 0x29);
+            }
+            MfNative.SetUInt32(audioOut, MfGuids.AacPayloadType, 0);
 
             MfNative.SinkAddStream(_writer, audioOut, out _audioStream);
 
@@ -103,10 +124,15 @@ public sealed class Mp4SinkWriter : IDisposable
         }
         else if (audioNative != IntPtr.Zero)
         {
-            // 音频重编码：AAC 输出（仅 major+subtype）← PCM16 输入（属性完整；录制管线同配方）
+            // 音频重编码：AAC 输出（openscreen 配方，192kbps）← PCM16 输入（属性完整）
             MfNative.MFCreateMediaType(out var audioOut);
             MfNative.SetGuid(audioOut, MfGuids.MajorType, MfGuids.MediaTypeAudio);
             MfNative.SetGuid(audioOut, MfGuids.Subtype, MfGuids.AudioFormatAac);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioBitsPerSample, 16);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioSamplesPerSecond, (uint)audioSampleRate);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioNumChannels, 2);
+            MfNative.SetUInt32(audioOut, MfGuids.AudioAvgBytesPerSecond, 24000);
+            MfNative.SetUInt32(audioOut, MfGuids.AacPayloadType, 0);
             MfNative.SinkAddStream(w._writer, audioOut, out w._audioStream);
 
             MfNative.MFCreateMediaType(out var audioIn);
@@ -228,7 +254,8 @@ public sealed class Mp4SinkWriter : IDisposable
         WriteAudioPcm16(pcm, byteCount, time, duration);
     }
 
-    /// <summary>写一段音频（显式时间，导出倍速用）</summary>
+    /// <summary>写一段音频（显式时间，导出倍速用）。byteCount=有效字节——
+    /// 必须只写前 byteCount（曾整块缓冲喂入=重复旧数据掺入=声音发糙，实测 2 倍帧数）</summary>
     public void WriteAudioPcm16(byte[] pcm, int byteCount, long timeNs, long durationNs)
     {
         if (byteCount <= 0)
@@ -236,7 +263,17 @@ public sealed class Mp4SinkWriter : IDisposable
             return;
         }
 
-        WriteSampleTo(false, pcm, timeNs, durationNs);
+        if (byteCount >= pcm.Length)
+        {
+            WriteSampleTo(false, pcm, timeNs, durationNs);
+        }
+        else
+        {
+            var data = new byte[byteCount];
+            Buffer.BlockCopy(pcm, 0, data, 0, byteCount);
+            WriteSampleTo(false, data, timeNs, durationNs);
+        }
+
         _audioBytesWritten += byteCount;
     }
 
