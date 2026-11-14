@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>轻启 QuickPalette — Windows 快捷启动器 · 截图录屏工具箱</title>
+<meta name="description" content="轻启 QuickPalette：Windows 本地白名单快捷启动器，拼音搜索秒开软件，内置截图、长截图、录屏工具箱，以及 U盘小助手、链接助手、置顶窗口等小工具。免费开源，本地优先。">
+<link rel="icon" type="image/png" href="assets/img/logo.png">
+<link rel="stylesheet" href="assets/css/style.css">
+<noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+</head>
+<body>
+
+<!-- 云纹背景（玻璃材质的“背后之物”） -->
+<div class="sky-bg" aria-hidden="true"></div>
+
+<!-- 玻璃胶囊导航 -->
+<header id="header">
+  <div class="header-wrap">
+    <a class="brand" href="#top">
+      <img src="assets/img/logo.png" alt="轻启 logo">
+      <span class="brand-name">轻启</span>
+      <span class="brand-suffix">QuickPalette</span>
+    </a>
+    <nav class="nav">
+      <a href="#features" class="nav-item"><span class="nav-inner"><span class="nav-text">功能</span></span></a>
+      <a href="#toolbox" class="nav-item"><span class="nav-inner"><span class="nav-text">工具箱</span></span></a>
+      <a href="#gallery" class="nav-item"><span class="nav-inner"><span class="nav-text">界面</span></span></a>
+      <a href="#faq" class="nav-item"><span class="nav-inner"><span class="nav-text">支持</span></span></a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn-github" href="https://github.com/sprmorn/QuickPalette" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.15c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.72.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.35.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.16 1.18a11 11 0 0 1 5.75 0c2.2-1.49 3.16-1.18 3.16-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.66.41.36.78 1.05.78 2.13v3.16c0 .3.2.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+        <span>GitHub</span>
+      </a>
+      <a class="btn-primary btn-nav" href="#download">立即下载</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- 首屏 -->
+  <section class="hero">
+    <div class="hero-inner">
+      <img class="hero-logo" src="assets/img/product-logo.png" alt="轻启 QuickPalette · Make It Easily">
+      <p class="hero-slogan">Windows 本地<b>白名单快捷启动器</b> &amp; <b>截图录屏工具箱</b><br>
+        唤起、输入、回车——一步直达你想要的一切</p>
+      <div class="hero-chips">
+        <span class="chip">拼音搜索秒开</span>
+        <span class="chip">截图 · 长截图 · 录屏</span>
+        <span class="chip">本地优先 · 免费开源</span>
+      </div>
+      <div class="hero-actions">
+        <a class="btn-primary btn-lg" href="#download">下载安装包</a>
+        <a class="btn-ghost btn-lg" href="https://github.com/sprmorn/QuickPalette/releases" target="_blank" rel="noopener">全部版本</a>
+      </div>
+      <p class="hero-note">v1.8.11 · Windows 10 / 11 x64 · 自包含免装运行时</p>
+    </div>
+    <div class="hero-shot">
+      <img src="assets/img/shots/light-mode.png" alt="轻启主界面（浅色模式）">
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><b>0.3s</b><span>唤起到就绪</span></div>
+      <div class="stat"><b>40+</b><span>系统组件直达</span></div>
+      <div class="stat"><b>351</b><span>自动化测试守护</span></div>
+      <div class="stat"><b>0</b><span>账号 · 云依赖</span></div>
+    </div>
+  </section>
+
+  <!-- 功能大卡 -->
+  <section class="section" id="features">
+    <h2 class="section-title reveal">一个窗口，装下你的高频操作</h2>
+    <p class="section-sub reveal">从启动软件到截图录屏，再到系统小工具——都在同一个唤起入口里。</p>
+
+    <div class="feature-card card-a reveal">
+      <div class="feature-copy">
+        <h3>秒开一切的快捷启动</h3>
+        <p>白名单只放你真正用的软件。中文、拼音、别名都能搜：<code>wx</code> 找到微信，<code>vscode</code> 打开 Visual Studio Code。注册表、任务管理器、控制面板……40 多个系统组件直达，不用再翻开始菜单。</p>
+        <ul class="feature-list">
+          <li>拖拽 / 运行中捕获 / 开始菜单导入，三种入库方式</li>
+          <li>命令模式：<code>&gt;settings</code>、<code>&gt;theme</code>、<code>&gt;backup</code></li>
+          <li>双栏设置、自动备份、深浅双主题</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="assets/img/shots/search.png" alt="拼音搜索界面">
+      </div>
+    </div>
+
+    <div class="feature-card card-b reveal reverse">
+      <div class="feature-copy">
+        <h3>截图 · 长截图 · 录屏</h3>
+        <p>框选截图随手标注（画笔 / 马赛克 / 文字），滚动长截图自动拼接，点一下切到录屏：区域录制、麦克风与系统声独立开关、3·2·1 倒数、录完即裁剪倍速，导出无损秒出。</p>
+        <ul class="feature-list">
+          <li>录屏走系统级采集：游戏、视频、远程桌面都能拍</li>
+          <li>音画同步误差 ≈ 一个音频帧（20ms 级）</li>
+          <li>录制先暂存，点保存才落盘，随手可复制发送</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="assets/img/shots/screenshot-tools.png" alt="截图与录屏工具条">
+      </div>
+    </div>
+
+    <div class="feature-card card-c reveal" id="toolbox">
+      <div class="feature-copy">
+        <h3>聪明的桌面小助手</h3>
+        <p>U盘一插就弹出容量卡，一键打开或弹出；复制到会议链接、网盘口令、远程协助码，右上角直接提示跳转，会议号、设备码分行可复制。还有窗口置顶、文件预览窗，都是用过就回不去的顺手。</p>
+        <ul class="feature-list">
+          <li>链接助手识别 7 大类，官方分享格式精准识别</li>
+          <li>提示卡不抢焦点、对截屏隐形、自动收起</li>
+          <li>置顶窗口全局热键 <code>Alt+F</code></li>
+        </ul>
+      </div>
+      <div class="feature-media two">
+        <img src="assets/img/shots/usb-assistant.jpg" alt="U盘小助手提示卡">
+        <img src="assets/img/shots/link-card.jpg" alt="链接助手提示卡">
+      </div>
+    </div>
+
+    <div class="feature-card card-d reveal reverse">
+      <div class="feature-copy">
+        <h3>处处妥帖的细节</h3>
+        <p>深浅双主题一键切换，预览窗唤起系统预览处理器看图看文档，设置双栏分组清晰不迷路，网络搜索一键直达搜索引擎。本地优先：所有数据都在你自己电脑上。</p>
+        <ul class="feature-list">
+          <li>浅色 / 深色主题，跟随你的桌面</li>
+          <li>预览窗支持图片、文档等系统预览格式</li>
+          <li>数据自动备份，可导出 / 导入</li>
+        </ul>
+      </div>
+      <div class="feature-media">
+        <img src="assets/img/shots/preview.png" alt="文件预览窗">
+      </div>
+    </div>
+  </section>
+
+  <!-- 特色网格 -->
+  <section class="section" id="highlights">
+    <h2 class="section-title reveal">为什么是轻启</h2>
+    <div class="grid-3">
+      <div class="mini-card reveal"><div class="mini-icon">⚡</div><h4>轻快不打扰</h4><p>托盘常驻，全局热键随时唤起；界面克制、动效轻盈，不打断你的节奏。</p></div>
+      <div class="mini-card reveal"><div class="mini-icon">🔒</div><h4>本地优先</h4><p>无账号、无云依赖、无遥测。数据全部存本机，自动备份随时导出。</p></div>
+      <div class="mini-card reveal"><div class="mini-icon">🧩</div><h4>白名单设计</h4><p>只索引你放行的软件，搜索结果干净精准，绝不塞给你任何推广。</p></div>
+      <div class="mini-card reveal"><div class="mini-icon">🖥️</div><h4>多屏 · 高DPI</h4><p>任意显示缩放（100%~200%+）、多显示器、异形选区，精确贴合不偏移。</p></div>
+      <div class="mini-card reveal"><div class="mini-icon">🎬</div><h4>录屏专业内核</h4><p>系统级采集 + 硬件编码，内存平稳如线，长时录制不掉链子。</p></div>
+      <div class="mini-card reveal"><div class="mini-icon">🆓</div><h4>免费开源</h4><p>代码全部公开在 GitHub，欢迎 Star、Issue 与 PR，为所有人免费。</p></div>
+    </div>
+  </section>
+
+  <!-- 界面画廊 -->
+  <section class="section" id="gallery">
+    <h2 class="section-title reveal">每一面都耐看</h2>
+    <p class="section-sub reveal">浅色、深色、设置与搜索——总有一处细节打动你。</p>
+    <div class="gallery reveal">
+      <figure><img src="assets/img/shots/dark-mode.png" alt="深色模式"><figcaption>深色模式</figcaption></figure>
+      <figure><img src="assets/img/shots/settings-1.png" alt="设置页面 1"><figcaption>双栏设置 · 小助手</figcaption></figure>
+      <figure><img src="assets/img/shots/web-search.png" alt="网络搜索"><figcaption>网络搜索直达</figcaption></figure>
+    </div>
+  </section>
+
+  <!-- 下载 -->
+  <section class="section" id="download">
+    <div class="download-card reveal">
+      <h2>现在就试试轻启</h2>
+      <p class="download-sub">免费 · 开源 · Windows 10 / 11 x64</p>
+      <div class="download-actions">
+        <a class="btn-primary btn-lg" href="https://github.com/sprmorn/QuickPalette/releases/latest" target="_blank" rel="noopener">下载安装包</a>
+        <a class="btn-ghost btn-lg" href="https://github.com/sprmorn/QuickPalette/releases/latest" target="_blank" rel="noopener">绿色便携版</a>
+        <a class="btn-ghost btn-lg" href="https://github.com/sprmorn/QuickPalette" target="_blank" rel="noopener">查看源码</a>
+      </div>
+      <p class="download-note">安装包按向导安装（可选开机自启）；绿色版解压即用，无需 .NET 运行时。<br>
+        录屏功能需要 Windows 10 2004 及以上；其余功能兼容更早版本。</p>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" id="faq">
+    <h2 class="section-title reveal">常见问题</h2>
+    <div class="faq reveal">
+      <details open>
+        <summary>安装包和绿色版有什么区别？</summary>
+        <p>功能完全一致。安装包会写开始菜单与可选开机自启；绿色版解压后直接运行 <code>QuickPalette.App.exe</code>，随拷随走。两者均为自包含，无需安装 .NET。</p>
+      </details>
+      <details>
+        <summary>录屏能录游戏和付费视频吗？</summary>
+        <p>录屏使用 Windows 系统级采集，游戏、本地视频、远程桌面都能录。但受 DRM 保护的流媒体内容（各平台付费内容）系统禁止任何软件录制，这是平台限制。</p>
+      </details>
+      <details>
+        <summary>我的软件会收集我的数据吗？</summary>
+        <p>不会。轻启无账号、无云同步、无遥测，所有配置与索引只保存在本机 <code>%APPDATA%\QuickPalette\</code>，并支持一键导出备份。</p>
+      </details>
+      <details>
+        <summary>遇到问题或有建议怎么反馈？</summary>
+        <p>欢迎到 <a href="https://github.com/sprmorn/QuickPalette/issues" target="_blank" rel="noopener">GitHub Issues</a> 提交反馈，或邮件联系 <a href="mailto:sprmorn666@qq.com">sprmorn666@qq.com</a>。</p>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<!-- 页脚 -->
+<footer>
+  <div class="footer-card">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="assets/img/brand.png" alt="春晨制品 · Made By SprMorn">
+        <p>轻启 QuickPalette<br><span>Make It Easily</span></p>
+      </div>
+      <div class="footer-col">
+        <h5>产品</h5>
+        <a href="#features">功能介绍</a>
+        <a href="#toolbox">工具箱</a>
+        <a href="#download">下载</a>
+      </div>
+      <div class="footer-col">
+        <h5>资源</h5>
+        <a href="https://github.com/sprmorn/QuickPalette" target="_blank" rel="noopener">GitHub 源码</a>
+        <a href="https://github.com/sprmorn/QuickPalette/releases" target="_blank" rel="noopener">版本发布</a>
+        <a href="https://github.com/sprmorn/QuickPalette/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新日志</a>
+      </div>
+      <div class="footer-col">
+        <h5>联系</h5>
+        <a href="mailto:sprmorn666@qq.com">sprmorn666@qq.com</a>
+        <a href="https://github.com/sprmorn/QuickPalette/issues" target="_blank" rel="noopener">反馈问题</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 SprMorn · 春晨制品　轻启 QuickPalette 采用开源方式发布</span>
+      <span>Make It Easily</span>
+    </div>
+  </div>
+</footer>
+
+<!-- 回到顶部 -->
+<button id="backTop" class="back-top" aria-label="回到顶部">↑</button>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>
