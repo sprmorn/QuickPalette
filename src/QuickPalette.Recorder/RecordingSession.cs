@@ -57,6 +57,15 @@ public sealed class RecordingSession : IDisposable
     public RecordingSession(RecordingOptions options, ILogger logger)
     {
         _logger = logger;
+
+        // H.264 编码器拒收奇数宽/高（实测 MF_E_INVALIDMEDIATYPE 0xC00D36B4）——
+        // 向下对齐偶数（少 1 行/列像素，肉眼不可察）
+        options = options with
+        {
+            CropWidth = Math.Max(2, options.CropWidth & ~1),
+            CropHeight = Math.Max(2, options.CropHeight & ~1),
+        };
+
         OutputPath = options.OutputPath;
 
         _audio = new RecordingAudio(options.MicEnabled, options.LoopbackEnabled);

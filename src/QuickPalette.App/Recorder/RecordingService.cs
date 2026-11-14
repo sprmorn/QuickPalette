@@ -39,6 +39,7 @@ public sealed class RecordingService
             return;
         }
 
+        var output = string.Empty;
         try
         {
             _busy = true;
@@ -53,7 +54,7 @@ public sealed class RecordingService
                 : _settings.RecordSaveDir;
             Directory.CreateDirectory(dir);
             var name = FileNameFor(_settings.RecordFileNameTemplate) + ".mp4";
-            var output = Path.Combine(dir, name);
+            output = Path.Combine(dir, name);
 
             var monitorBounds = NativeMethods.MonitorBounds(hmon);
             var options = new RecordingOptions(
@@ -89,6 +90,19 @@ public sealed class RecordingService
         {
             _busy = false;
             _logger.Error(ex, "Start recording failed");
+            try
+            {
+                // 失败时清掉创建出的 0KB 残渣文件
+                if (File.Exists(output) && new FileInfo(output).Length == 0)
+                {
+                    File.Delete(output);
+                }
+            }
+            catch
+            {
+                // 忽略
+            }
+
             MessageBox.Show($"录屏启动失败：{ex.Message}", "录屏", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
