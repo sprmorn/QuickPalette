@@ -244,6 +244,10 @@ public sealed class Mp4SinkWriter : IDisposable
         MfNative.SampleSetTime(sample, timeNs);
         MfNative.SampleSetDuration(sample, durationNs);
         MfNative.SinkWriteSample(_writer, stream, sample);
+
+        // 关键：COM 对象用完即放（否则每帧泄漏 sample+buffer ≈ 90MB/秒）
+        MfNative.Release(sample);
+        MfNative.Release(buffer);
     }
 
     /// <summary>写一段音频（PCM16 小端立体声），时间按累计样本数连续推算（录制用）</summary>

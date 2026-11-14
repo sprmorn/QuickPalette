@@ -35,6 +35,19 @@ public static class MfNative
     [DllImport("mfplat.dll")]
     public static extern int MFStartup(uint version, uint flags);
 
+    /// <summary>释放 COM 对象（vtable 槽 2 = IUnknown::Release）。
+    /// 不放 = 每帧泄漏 sample+buffer（实测 90MB/秒），录制必爆内存。</summary>
+    public static void Release(IntPtr p)
+    {
+        if (p != IntPtr.Zero)
+        {
+            Fn<ReleaseFn>(p, 2)(p);
+        }
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int ReleaseFn(IntPtr self);
+
     [DllImport("mfplat.dll")]
     public static extern int MFShutdown();
 

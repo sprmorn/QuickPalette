@@ -124,8 +124,11 @@ public static class RecordingExporter
                     finally
                     {
                         MfNative.BufferUnlock(buffer);
+                        MfNative.Release(buffer); // COM 用完即放
                     }
                 }
+
+                MfNative.Release(sample);
             }
 
             if (pendingTs.HasValue && pendingData != null)
@@ -199,7 +202,10 @@ public static class RecordingExporter
             finally
             {
                 MfNative.BufferUnlock(buffer);
+                MfNative.Release(buffer); // COM 用完即放
             }
+
+            MfNative.Release(sample);
 
             var baseSample = (long)Math.Round(ts / 1e7 * SampleRate);
             var sampleCount = tmp.Length / SampleBytes;
