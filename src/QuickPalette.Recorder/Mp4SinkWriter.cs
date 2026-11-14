@@ -132,8 +132,38 @@ public sealed class Mp4SinkWriter : IDisposable
     {
     }
 
-    /// <summary>写一帧（BGRA/RGB32，stride = width*4）</summary>
-    public void WriteFrame(byte[] bgra, long timeNs) => WriteFrame(bgra, timeNs, TicksPerSecond / _fps);
+    /// <summary>写一帧（BGRA/RGB32，stride = width*4）。录制模式内部延迟一帧写入：
+    /// 帧时长用相邻时间戳差（固定 1/fps 与真实间隔脱钩会令视频轨时长漂移 → 音画不同步，实测坑）。</summary>
+    public void WriteFrame(byte[] bgra, long timeNs)
+    {
+        if (_pendingFrame != null)
+        {
+            var dur = timeNs - _pendingFrameTimeNs;
+            if (dur <= 0)
+            {
+                dur = TicksPerSecond / _fps;
+            }
+
+            WriteSampleTo(true, _pendingFrame, _pendingFrameTimeNs, dur);
+        }
+
+        _pendingFrame = new byte[bgra.Length];
+        Buffer.BlockCopy(bgra, 0, _pendingFrame, 0, bgra.Length);
+        _pendingFrameTimeNs = timeNs;
+    }
+
+    private byte[]? _pendingFrame;
+    private long _pendingFrameTimeNs;
+
+    /// <summary>录制收尾：把最后一帧按兜底时长写出（Stop 时调用）</summary>
+    public void FlushPendingFrame()
+    {
+        if (_pendingFrame != null)
+        {
+            WriteSampleTo(true, _pendingFrame, _pendingFrameTimeNs, TicksPerSecond / _fps);
+            _pendingFrame = null;
+        }
+    }
 
     /// <summary>写一帧（显式时长，导出倍速用）</summary>
     public void WriteFrame(byte[] bgra, long timeNs, long durationNs) => WriteSampleTo(true, bgra, timeNs, durationNs);
@@ -218,6 +248,7 @@ public sealed class Mp4SinkWriter : IDisposable
             return;
         }
 
+        FlushPendingFrame();
         _finalized = true;
         MfNative.SinkDoFinalize(_writer);
     }

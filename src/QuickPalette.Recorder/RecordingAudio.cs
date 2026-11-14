@@ -124,6 +124,18 @@ public sealed class RecordingAudio : IDisposable
         return byteCount;
     }
 
+    private readonly float[] _scratchFloats = new float[RecordingAudio.TargetRate / 25 * 2];
+
+    /// <summary>丢弃当前已缓冲的音频（暂停段不入轨用）</summary>
+    public void DiscardPending(byte[] scratch)
+    {
+        lock (_sync)
+        {
+            _micProvider?.Read(_scratchFloats, 0, _scratchFloats.Length);
+            _loopProvider?.Read(_scratchFloats, 0, _scratchFloats.Length);
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -89,6 +89,10 @@ public sealed class RecordingSession : IDisposable
             options.CropWidth, options.CropHeight, fps, HasAudioTrack, options.OutputPath);
     }
 
+    private long _firstFrameNs = -1;
+    private long _audioBytesWritten;
+    private readonly ManualResetEventSlim _audioReady = new(false);
+
     private void OnFrame(byte[] bgra)
     {
         if (!_running || Paused)
@@ -98,7 +102,15 @@ public sealed class RecordingSession : IDisposable
 
         try
         {
-            _writer.WriteFrame(bgra, (long)(Elapsed.TotalMilliseconds * 10_000));
+            var elapsedNs = (long)(Elapsed.TotalMilliseconds * 10_000);
+            if (_firstFrameNs < 0)
+            {
+                // 双轨统一 0 起点：首帧 = 0，音频等此信号后开写 → 音画对齐
+                _firstFrameNs = elapsedNs;
+                _audioReady.Set();
+            }
+
+            _writer.WriteFrame(bgra, elapsedNs - _firstFrameNs);
         }
         catch (Exception ex)
         {
@@ -106,20 +118,50 @@ public sealed class RecordingSession : IDisposable
         }
     }
 
-    /// <summary>音频按 20ms 节奏独立推进（不受视频帧率波动影响，时间轴连续）</summary>
+    /// <summary>
+    /// 音频独立推进，但按真实时钟补足采样（每圈固定产出会欠产 → 音频轴变短 → 音画漂移，实测坑）；
+    /// 暂停段排空缓冲不入轨。
+    /// </summary>
     private void AudioLoop()
     {
-        var buf = new byte[RecordingAudio.TargetRate / 50 * 4]; // 20ms × 48k × 4字节
+        var buf = new byte[RecordingAudio.TargetRate / 25 * 4]; // 单次最多 40ms × 48k × 4字节
+        _audioReady.Wait(5000); // 等首帧，与视频 0 起点对齐
+        _audio?.DiscardPending(buf); // 丢弃首帧到达前的积压（画面起点之前的声音不入轨）
         while (_running)
         {
             try
             {
-                if (!Paused && _audio != null)
+                if (_audio == null)
                 {
-                    var n = _audio.ReadPcm16(buf, buf.Length);
-                    if (n > 0)
+                    break;
+                }
+
+                if (Paused)
+                {
+                    _audio.DiscardPending(buf);
+                }
+                else
+                {
+                    // 目标采样数 = （媒体时刻 - 首帧时刻）× 48k；缺口一次性补足
+                    var sinceFirstNs = (long)(Elapsed.TotalMilliseconds * 10_000) - _firstFrameNs;
+                    var targetSamples = Math.Max(0, sinceFirstNs * RecordingAudio.TargetRate / 10_000_000);
+                    var writtenSamples = _audioBytesWritten / 4;
+                    var missing = targetSamples - writtenSamples;
+                    if (missing > 0)
                     {
-                        _writer.WriteAudioPcm16(buf, n, RecordingAudio.TargetRate);
+                        var toRead = (int)Math.Min(missing * 4, buf.Length);
+                        toRead -= toRead % 4;
+                        if (toRead > 0)
+                        {
+                            var n = _audio.ReadPcm16(buf, toRead);
+                            if (n > 0)
+                            {
+                                var time = _audioBytesWritten * 10_000_000L / (RecordingAudio.TargetRate * 4L);
+                                var dur = n * 10_000_000L / (RecordingAudio.TargetRate * 4L);
+                                _writer.WriteAudioPcm16(buf, n, time, dur);
+                                _audioBytesWritten += n;
+                            }
+                        }
                     }
                 }
             }
@@ -128,7 +170,7 @@ public sealed class RecordingSession : IDisposable
                 _logger.Warning(ex, "Audio loop error");
             }
 
-            Thread.Sleep(20);
+            Thread.Sleep(15);
         }
     }
 
@@ -206,6 +248,8 @@ public sealed class RecordingSession : IDisposable
         _writer.FinalizeFile();
         _writer.Dispose();
         _audio?.Dispose();
+        _logger.Information("Audio written: {Samples} samples = {Sec:0.000}s (elapsed {Elapsed:0.000}s)",
+            _audioBytesWritten / 4, _audioBytesWritten / 4.0 / RecordingAudio.TargetRate, Elapsed.TotalSeconds);
 
         _logger.Information("Recording stopped: {Elapsed} -> {Path}", Elapsed, OutputPath);
         return OutputPath;

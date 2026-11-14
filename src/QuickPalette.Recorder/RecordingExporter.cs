@@ -1,5 +1,6 @@
 namespace QuickPalette.Recorder;
 
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -156,8 +157,9 @@ public static class RecordingExporter
     }
 
     /// <summary>
-    /// 音频变速重编码：解码 PCM16/48k/立体声 → 线性插值重采样（音高随速）→ AAC。
-    /// 输出采样 k ↔ 源采样位置 p = startPos + k*speed，与视频的 (t-trimStart)/speed 同映射 → 音画同步。
+    /// 音频变速重编码：解码 PCM16/48k/立体声 → 按时间戳铺时间线 → 按 (t-trimStart)/speed 取值重采样 → AAC。
+    /// 用绝对时间定位（而非采样累计），免疫 AAC 编解码 priming/填充造成的采样膨胀（实测坑）；
+    /// 与视频时间映射完全一致 → 音画同步。
     /// </summary>
     private static void TranscodeAudio(IntPtr reader, int audioIdx, Mp4SinkWriter writer,
         long trimStart, long trimEnd, double speed)
@@ -173,9 +175,9 @@ public static class RecordingExporter
         MfNative.SetUInt32(pcm, MfGuids.AudioAvgBytesPerSecond, SampleRate * 4);
         MfNative.ReaderSetCurrentMediaType(reader, audioIdx, pcm);
 
-        // 收集解码 PCM（短片整条入内存可接受）
-        using var ms = new MemoryStream();
-        long firstTs = -1;
+        // 时间线：按每个解码样本自带 ts 落位（不依赖采样累计——编解码器填充会令累计膨胀）
+        byte[] timeline = Array.Empty<byte>();
+        long timelineSamples = 0;
         while (true)
         {
             MfNative.ReaderReadSample(reader, audioIdx, out _, out var flags, out var ts, out var sample);
@@ -184,35 +186,40 @@ public static class RecordingExporter
                 break;
             }
 
-            if (firstTs < 0)
-            {
-                firstTs = ts;
-            }
-
             MfNative.SampleToContiguousBuffer(sample, out var buffer);
+            MfNative.SampleGetTotalLength(sample, out var totalLength);
             MfNative.BufferLock(buffer, out var ptr, out _, out var length);
+            byte[] tmp;
             try
             {
-                var tmp = new byte[length];
-                Marshal.Copy(ptr, tmp, 0, length);
-                ms.Write(tmp, 0, length);
+                var n = (int)Math.Min(length, totalLength);
+                tmp = new byte[n];
+                Marshal.Copy(ptr, tmp, 0, n);
             }
             finally
             {
                 MfNative.BufferUnlock(buffer);
             }
+
+            var baseSample = (long)Math.Round(ts / 1e7 * SampleRate);
+            var sampleCount = tmp.Length / SampleBytes;
+            var needed = (baseSample + sampleCount + 2) * SampleBytes;
+            if (needed > timeline.Length)
+            {
+                Array.Resize(ref timeline, (int)Math.Min(int.MaxValue - 64, needed + SampleRate * SampleBytes));
+            }
+
+            Buffer.BlockCopy(tmp, 0, timeline, (int)(baseSample * SampleBytes), tmp.Length);
+            timelineSamples = Math.Max(timelineSamples, baseSample + sampleCount);
         }
 
-        var src = ms.ToArray();
-        var totalSamples = src.Length / SampleBytes;
-        if (totalSamples < 2 || firstTs < 0)
+        if (timelineSamples < 2)
         {
             return;
         }
 
-        var srcStartSec = firstTs / 1e7;
-        var startPos = (trimStart / 1e7 - srcStartSec) * SampleRate; // 输出 k=0 对应的源采样位置
-        var endPos = (trimEnd / 1e7 - srcStartSec) * SampleRate;
+        var trimStartSec = trimStart / 1e7;
+        var trimEndSec = trimEnd / 1e7;
 
         const int chunkSamples = SampleRate / 20; // 20ms 一块
         var chunk = new byte[chunkSamples * SampleBytes];
@@ -221,8 +228,15 @@ public static class RecordingExporter
 
         for (long k = 0; ; k++)
         {
-            var p = startPos + k * speed;
-            if (p >= totalSamples - 1 || p >= endPos)
+            var tSec = trimStartSec + k * speed / SampleRate;
+            if (tSec >= trimEndSec)
+            {
+                break;
+            }
+
+            var p = (tSec - trimStartSec * 0) * SampleRate; // 源采样位置（绝对）
+            p = tSec * SampleRate;
+            if (p >= timelineSamples - 1)
             {
                 break;
             }
@@ -241,8 +255,8 @@ public static class RecordingExporter
             {
                 var i0off = (int)(i0 * SampleBytes) + ch * 2;
                 var i1off = (int)((i0 + 1) * SampleBytes) + ch * 2;
-                var s0 = (short)(src[i0off] | (src[i0off + 1] << 8));
-                var s1 = (short)(src[i1off] | (src[i1off + 1] << 8));
+                var s0 = (short)(timeline[i0off] | (timeline[i0off + 1] << 8));
+                var s1 = (short)(timeline[i1off] | (timeline[i1off + 1] << 8));
                 var v = (short)(s0 + (s1 - s0) * frac);
                 chunk[o + ch * 2] = (byte)(v & 0xFF);
                 chunk[o + ch * 2 + 1] = (byte)((v >> 8) & 0xFF);
@@ -263,6 +277,8 @@ public static class RecordingExporter
             Array.Copy(chunk, tail, tail.Length);
             FlushChunk(writer, tail, chunkIndex, outStart);
         }
+
+        Trace.TraceInformation($"TranscodeAudio: timelineSamples={timelineSamples} ({timelineSamples / (double)SampleRate:0.000}s)");
     }
 
     private static void FlushChunk(Mp4SinkWriter writer, byte[] data, int samples, long startSample)
