@@ -203,11 +203,11 @@ public partial class App : System.Windows.Application
             _logger.Information("--record-test 检查: [{Args}]", string.Join(",", argv));
             if (argv.Any(a => string.Equals(a, "--record-test", StringComparison.OrdinalIgnoreCase)))
             {
-                _logger.Information("--record-test 命中，启动测试录制（4 秒后自动停止；故意用奇数尺寸回归 0xC00D36B4）");
+                _logger.Information("--record-test 命中，启动测试录制（倒数3秒+录4秒后自动停止；故意用奇数尺寸回归）");
                 Dispatcher.BeginInvoke(() => _recordingService!.Start(new System.Drawing.Rectangle(401, 301, 501, 299)));
                 _ = Task.Run(async () =>
                 {
-                    await Task.Delay(4000);
+                    await Task.Delay(8000); // 3s 倒数 + 4s 录制
                     await Dispatcher.InvokeAsync(() => _recordingService?.RequestStop());
                 });
             }

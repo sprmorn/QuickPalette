@@ -8,7 +8,8 @@ using QuickPalette.Recorder;
 using Serilog;
 
 /// <summary>
-/// 录屏编排：选区 → RecordingSession（WGC+MF）→ 细条条（计时/音频/暂停/停止）→
+/// 录屏编排：选区 → ①3/2/1 倒数 + ③区域高亮遮罩 → RecordingSession（WGC+MF）→
+/// 细条条（计时/音频/暂停/停止）→ ②录制写入临时缓存，编辑窗点“保存”才落正式目录 →
 /// 编辑窗（预览/倍速/裁剪 → 复制/保存）。
 /// </summary>
 public sealed class RecordingService
@@ -18,6 +19,7 @@ public sealed class RecordingService
 
     private RecordingSession? _session;
     private RecordingBarWindow? _bar;
+    private CountdownOverlayWindow? _overlay;
     private bool _busy;
 
     public RecordingService(ILogger logger, Settings settings)
@@ -31,7 +33,7 @@ public sealed class RecordingService
     /// <summary>程序触发停止（测试钩子用）</summary>
     public void RequestStop() => _bar?.TriggerStop();
 
-    /// <summary>开始录制选区（物理像素矩形）</summary>
+    /// <summary>开始录制选区（物理像素矩形）：先倒数遮罩，倒数毕开录</summary>
     public void Start(System.Drawing.Rectangle region)
     {
         if (_busy)
@@ -39,24 +41,21 @@ public sealed class RecordingService
             return;
         }
 
-        var output = string.Empty;
         try
         {
             _busy = true;
 
             // 监视器句柄 = 选区中心所在屏
             var center = new System.Drawing.Point(region.X + region.Width / 2, region.Y + region.Height / 2);
-            var hmon = NativeMethods.MonitorFromPoint(
-                new System.Drawing.Point(center.X, center.Y), 2 /* MONITOR_DEFAULTTONEAREST */);
+            var hmon = NativeMethods.MonitorFromPoint(center, 2 /* MONITOR_DEFAULTTONEAREST */);
+            var monitorBounds = NativeMethods.MonitorBounds(hmon);
 
-            var dir = string.IsNullOrWhiteSpace(_settings.RecordSaveDir)
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "轻启录制")
-                : _settings.RecordSaveDir;
+            // ② 录制写入临时缓存——用户点“保存”才落正式目录（避免未保存就出现成品文件）
+            var dir = Path.Combine(Path.GetTempPath(), "轻启录制缓存");
             Directory.CreateDirectory(dir);
             var name = FileNameFor(_settings.RecordFileNameTemplate) + ".mp4";
-            output = Path.Combine(dir, name);
+            var output = Path.Combine(dir, name);
 
-            var monitorBounds = NativeMethods.MonitorBounds(hmon);
             var options = new RecordingOptions(
                 hmon,
                 region.X - monitorBounds.X,
@@ -71,12 +70,31 @@ public sealed class RecordingService
                 _settings.RecordSystemAudioEnabled,
                 output);
 
+            // ①③ 倒数 + 区域高亮遮罩（对录屏隐形）
+            _overlay = new CountdownOverlayWindow(monitorBounds, region);
+            _overlay.CountdownCompleted += () => BeginRecording(options, output);
+            _overlay.Show();
+
+            _logger.Information("Countdown started: {Region} -> {Output}", region, output);
+        }
+        catch (Exception ex)
+        {
+            _busy = false;
+            _logger.Error(ex, "Start recording failed");
+            MessageBox.Show($"录屏启动失败：{ex.Message}", "录屏", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>倒数结束：开录 + 显示细条条（遮罩保留至停止）</summary>
+    private void BeginRecording(RecordingOptions options, string output)
+    {
+        try
+        {
             _session = new RecordingSession(options, _logger);
             _bar = new RecordingBarWindow(_session, _settings.RecordMicEnabled, _settings.RecordSystemAudioEnabled);
             _bar.StopRequested += () => _ = StopAsync();
             _bar.Closed += (_, _) =>
             {
-                // 关闭细条条等同停止（若仍在录）
                 if (_session != null)
                 {
                     _ = StopAsync();
@@ -84,25 +102,21 @@ public sealed class RecordingService
             };
             _bar.Show();
 
-            _logger.Information("Recording service started: {Region} -> {Output}", region, output);
+            _logger.Information("Recording service started: {Output}", output);
         }
         catch (Exception ex)
         {
-            _busy = false;
-            _logger.Error(ex, "Start recording failed");
+            _logger.Error(ex, "Begin recording failed");
             try
             {
-                // 失败时清掉创建出的 0KB 残渣文件
-                if (File.Exists(output) && new FileInfo(output).Length == 0)
-                {
-                    File.Delete(output);
-                }
+                _overlay?.Close();
             }
             catch
             {
-                // 忽略
             }
 
+            _overlay = null;
+            _busy = false;
             MessageBox.Show($"录屏启动失败：{ex.Message}", "录屏", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -113,8 +127,10 @@ public sealed class RecordingService
         {
             var session = _session;
             var bar = _bar;
+            var overlay = _overlay;
             _session = null;
             _bar = null;
+            _overlay = null;
             _busy = false;
             if (session == null)
             {
@@ -129,10 +145,17 @@ public sealed class RecordingService
             }
             catch
             {
-                // 忽略
             }
 
-            // 编辑窗（预览/倍速/裁剪/复制/保存）
+            try
+            {
+                overlay?.Close();
+            }
+            catch
+            {
+            }
+
+            // 编辑窗（预览/倍速/裁剪/复制/保存）——保存时才落正式目录
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 var edit = new RecordingEditWindow(_logger, path, _settings);

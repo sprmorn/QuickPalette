@@ -1,0 +1,37 @@
+<Window x:Class="QuickPalette.App.Recorder.CountdownOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="录屏倒数"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        ShowActivated="False">
+    <Grid x:Name="Root">
+        <!-- 全屏灰罩挖洞（Exclude）→ 突显录制区域 -->
+        <Path x:Name="MaskPath" Fill="#59000000"/>
+
+        <!-- 选区高亮边框 -->
+        <Border x:Name="RegionBorder"
+                BorderBrush="#FF4CD964"
+                BorderThickness="2"
+                CornerRadius="2"/>
+
+        <!-- 倒数数字 -->
+        <TextBlock x:Name="CountText"
+                   Text="3"
+                   Foreground="White"
+                   FontSize="160"
+                   FontWeight="Bold"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   TextAlignment="Center"
+                   IsHitTestVisible="False">
+            <TextBlock.Effect>
+                <DropShadowEffect BlurRadius="24" Opacity="0.8" ShadowDepth="0"/>
+            </TextBlock.Effect>
+        </TextBlock>
+    </Grid>
+</Window>

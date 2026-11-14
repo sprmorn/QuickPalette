@@ -24,6 +24,7 @@ public partial class RecordingEditWindow : Window
     private readonly DispatcherTimer _clock;
     private TimeSpan _duration;
     private bool _playing;
+    private bool _handled; // 已保存/另存为/复制 = 内容已交到用户手里
 
     public RecordingEditWindow(ILogger logger, string sourcePath, Settings settings)
     {
@@ -68,10 +69,29 @@ public partial class RecordingEditWindow : Window
                 Preview.Stop();
                 Preview.Source = null;
                 File.Delete(_previewPath);
+                // 清理临时缓存的录制文件（保存/另存为/复制后正式产物已另存，源缓存使命完成）
+                File.Delete(_sourcePath);
             }
             catch
             {
                 // 清理失败忽略（%TEMP% 会被系统回收）
+            }
+        };
+
+        // 未保存就关闭 = 丢弃录制 → 二次确认（录制暂存于临时目录，关了就没了）
+        Closing += (_, e) =>
+        {
+            if (!_handled)
+            {
+                var r = MessageBox.Show(
+                    "这次录制还没有保存，关闭将丢弃。\n\n确定关闭吗？",
+                    "录屏",
+                    MessageBoxButton.OKCancel,
+                    MessageBoxImage.Question);
+                if (r != MessageBoxResult.OK)
+                {
+                    e.Cancel = true;
+                }
             }
         };
     }
@@ -243,6 +263,7 @@ public partial class RecordingEditWindow : Window
             var files = new System.Collections.Specialized.StringCollection { temp };
             data.SetFileDropList(files);
             Clipboard.SetDataObject(data, true);
+            _handled = true;
             MessageBox.Show("已复制到剪贴板（可直接粘贴发送）", "录屏", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -273,6 +294,7 @@ public partial class RecordingEditWindow : Window
             var result = await ProduceEditedAsync(target);
             if (result != null)
             {
+                _handled = true;
                 MessageBox.Show($"已保存：\n{target}", "录屏", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
@@ -314,6 +336,10 @@ public partial class RecordingEditWindow : Window
             if (result == null)
             {
                 MessageBox.Show("导出失败，请查看日志。", "录屏", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            else
+            {
+                _handled = true;
             }
         }
         catch (Exception ex)
