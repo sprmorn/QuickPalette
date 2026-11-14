@@ -65,6 +65,10 @@ public partial class CountdownOverlayWindow : Window
                 {
                     // 对录屏/截屏隐形——遮罩绝不能被录进去
                     SetWindowDisplayAffinity(hwnd, 0x11);
+                    // 点击穿透双保险：Win32 级 WS_EX_TRANSPARENT|WS_EX_LAYERED
+                    // （WPF 的 IsHitTestVisible=False 之外的底层保证，遮罩绝不挡操作）
+                    var ex = GetWindowLong(hwnd, -20 /* GWL_EXSTYLE */);
+                    SetWindowLong(hwnd, -20, ex | 0x20 /* WS_EX_TRANSPARENT */ | 0x80000 /* WS_EX_LAYERED */);
                 }
             }
             catch
@@ -169,6 +173,12 @@ public partial class CountdownOverlayWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(long point, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);

@@ -8,7 +8,8 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        ShowActivated="False">
+        ShowActivated="False"
+        IsHitTestVisible="False">
     <Grid x:Name="Root">
         <!-- 全屏灰罩挖洞（Exclude）→ 突显录制区域 -->
         <Path x:Name="MaskPath" Fill="#59000000"/>
