@@ -18,6 +18,7 @@ public sealed class Mp4SinkWriter : IDisposable
     private int _height;
     private int _fps;
     private bool _hasAudio;
+    private bool _reencodeAudio;
     private int _videoStride;
     private long _audioBytesWritten;
     private bool _started;
@@ -82,8 +83,11 @@ public sealed class Mp4SinkWriter : IDisposable
         _started = true;
     }
 
-    /// <summary>重封装模式：输入输出同为压缩类型（H.264/AAC 透传，仅重写时间戳）</summary>
-    public static Mp4SinkWriter CreateRemux(string outputPath, IntPtr videoNative, IntPtr audioNative)
+    /// <summary>重封装模式：视频压缩透传（仅重写时间戳）。
+    /// reencodeAudio=false 时音频也透传；=true 时音频走 PCM16→AAC 重编码——
+    /// 倍速导出必须重编码音频：AAC 帧恒定解出 21.3ms 声音，纯透传压缩时间戳必致音画错位（实测坑）。</summary>
+    public static Mp4SinkWriter CreateRemux(string outputPath, IntPtr videoNative, IntPtr audioNative,
+        bool reencodeAudio = false, int audioSampleRate = 48000)
     {
         var w = new Mp4SinkWriter();
         MfNative.EnsureStarted();
@@ -91,11 +95,32 @@ public sealed class Mp4SinkWriter : IDisposable
 
         MfNative.SinkAddStream(w._writer, videoNative, out w._videoStream);
         MfNative.SinkSetInputMediaType(w._writer, w._videoStream, videoNative);
-        if (audioNative != IntPtr.Zero)
+        if (audioNative != IntPtr.Zero && !reencodeAudio)
         {
             MfNative.SinkAddStream(w._writer, audioNative, out w._audioStream);
             MfNative.SinkSetInputMediaType(w._writer, w._audioStream, audioNative);
             w._hasAudio = true;
+        }
+        else if (audioNative != IntPtr.Zero)
+        {
+            // 音频重编码：AAC 输出（仅 major+subtype）← PCM16 输入（属性完整；录制管线同配方）
+            MfNative.MFCreateMediaType(out var audioOut);
+            MfNative.SetGuid(audioOut, MfGuids.MajorType, MfGuids.MediaTypeAudio);
+            MfNative.SetGuid(audioOut, MfGuids.Subtype, MfGuids.AudioFormatAac);
+            MfNative.SinkAddStream(w._writer, audioOut, out w._audioStream);
+
+            MfNative.MFCreateMediaType(out var audioIn);
+            MfNative.SetGuid(audioIn, MfGuids.MajorType, MfGuids.MediaTypeAudio);
+            MfNative.SetGuid(audioIn, MfGuids.Subtype, MfGuids.AudioFormatPcm);
+            MfNative.SetUInt32(audioIn, MfGuids.AudioBitsPerSample, 16);
+            MfNative.SetUInt32(audioIn, MfGuids.AudioSamplesPerSecond, (uint)audioSampleRate);
+            MfNative.SetUInt32(audioIn, MfGuids.AudioNumChannels, 2);
+            MfNative.SetUInt32(audioIn, MfGuids.AudioBlockAlignment, 4);
+            MfNative.SetUInt32(audioIn, MfGuids.AudioAvgBytesPerSecond, (uint)(audioSampleRate * 4));
+            MfNative.SinkSetInputMediaType(w._writer, w._audioStream, audioIn);
+
+            w._hasAudio = true;
+            w._reencodeAudio = true;
         }
 
         MfNative.SinkBeginWriting(w._writer);

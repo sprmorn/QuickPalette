@@ -1,16 +1,20 @@
 namespace QuickPalette.Recorder;
 
-using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 /// <summary>
-/// 录后导出：时间裁剪（掐头去尾）+ 倍速（时间戳重写，音高随速变化）。
-/// 压缩流透传重封装（H.264/AAC 原样搬运）——无损、免解码、速度快。
-/// 不裁不加速时直接复制文件。互操作走 vtable 直调（免疫 ComWrappers）。
+/// 录后导出：时间裁剪（掐头去尾）+ 倍速。
+/// 视频：压缩流透传（无损、仅重写时间戳）。
+/// 音频：speed=1 时透传；speed≠1 时**解码→重采样（音高随速）→AAC 重编码**——
+/// AAC 帧恒定解出 21.3ms 声音，纯透传压缩时间戳必致音画错位（实测坑）。
+/// 不裁不加速时直接复制文件。
 /// </summary>
 public static class RecordingExporter
 {
     private const long Ticks = 10_000_000;
+    private const int SampleRate = 48000;
+    private const int SampleBytes = 4; // 16bit × 2ch
 
     /// <summary>trimStartSec/trimEndSec：保留区间（end≤0 = 到结尾）；speed ∈ [0.25, 4]</summary>
     public static void Export(string inputPath, string outputPath, double trimStartSec, double trimEndSec, double speed)
@@ -25,81 +29,80 @@ public static class RecordingExporter
         }
 
         MfNative.EnsureStarted();
-        try
+        MfNative.MFCreateSourceReaderFromURL(inputPath, IntPtr.Zero, out var reader);
+
+        // 识别视频/音频流
+        var videoIdx = -1;
+        var audioIdx = -1;
+        var videoNative = IntPtr.Zero;
+        var audioNative = IntPtr.Zero;
+        for (var i = 0; i < 4; i++)
         {
-            MfNative.MFCreateSourceReaderFromURL(inputPath, IntPtr.Zero, out var reader);
-
-            // 识别视频/音频流（压缩原生类型即输出类型）
-            var videoIdx = -1;
-            var audioIdx = -1;
-            var videoNative = IntPtr.Zero;
-            var audioNative = IntPtr.Zero;
-            for (var i = 0; i < 4; i++)
+            IntPtr mt;
+            try
             {
-                IntPtr mt;
-                try
-                {
-                    MfNative.ReaderGetNativeMediaType(reader, i, 0, out mt);
-                }
-                catch
-                {
-                    continue;
-                }
-
-                MfNative.GetGuid(mt, MfGuids.MajorType, out var major);
-                if (major == MfGuids.MediaTypeVideo && videoIdx < 0)
-                {
-                    videoIdx = i;
-                    videoNative = mt;
-                }
-                else if (major == MfGuids.MediaTypeAudio && audioIdx < 0)
-                {
-                    audioIdx = i;
-                    audioNative = mt;
-                }
-
-                MfNative.ReaderSetStreamSelection(reader, i, true);
+                MfNative.ReaderGetNativeMediaType(reader, i, 0, out mt);
+            }
+            catch
+            {
+                continue;
             }
 
-            if (videoIdx < 0 || videoNative == IntPtr.Zero)
+            MfNative.GetGuid(mt, MfGuids.MajorType, out var major);
+            if (major == MfGuids.MediaTypeVideo && videoIdx < 0)
             {
-                throw new InvalidOperationException("导出失败：输入文件没有视频轨");
+                videoIdx = i;
+                videoNative = mt;
+            }
+            else if (major == MfGuids.MediaTypeAudio && audioIdx < 0)
+            {
+                audioIdx = i;
+                audioNative = mt;
             }
 
-            using var writer = Mp4SinkWriter.CreateRemux(outputPath, videoNative, audioNative);
-
-            var trimStartTicks = (long)(trimStartSec * Ticks);
-            var trimEndTicks = trimEndSec > 0 ? (long)(trimEndSec * Ticks) : long.MaxValue;
-
-            CopyStream(reader, videoIdx, writer, true, trimStartTicks, trimEndTicks, speed);
-            if (audioIdx >= 0)
-            {
-                CopyStream(reader, audioIdx, writer, false, trimStartTicks, trimEndTicks, speed);
-            }
-
-            writer.FinalizeFile();
+            MfNative.ReaderSetStreamSelection(reader, i, true);
         }
-        finally
+
+        if (videoIdx < 0 || videoNative == IntPtr.Zero)
         {
+            throw new InvalidOperationException("导出失败：输入文件没有视频轨");
         }
+
+        var reencodeAudio = audioIdx >= 0 && Math.Abs(speed - 1) >= 0.001;
+        using var writer = Mp4SinkWriter.CreateRemux(outputPath, videoNative, audioNative, reencodeAudio, SampleRate);
+
+        var trimStartTicks = (long)(trimStartSec * Ticks);
+        var trimEndTicks = trimEndSec > 0 ? (long)(trimEndSec * Ticks) : long.MaxValue;
+
+        // 视频：透传（时间戳按 (t-trimStart)/speed 线性映射）
+        CopyStream(reader, videoIdx, writer, true, trimStartTicks, trimEndTicks, speed);
+
+        if (audioIdx >= 0 && !reencodeAudio)
+        {
+            // 原速裁剪：音频透传安全
+            CopyStream(reader, audioIdx, writer, false, trimStartTicks, trimEndTicks, speed);
+        }
+        else if (audioIdx >= 0)
+        {
+            // 倍速：音频解码→重采样→重编码（与视频同一时间映射，保证同步）
+            TranscodeAudio(reader, audioIdx, writer, trimStartTicks, trimEndTicks, speed);
+        }
+
+        writer.FinalizeFile();
     }
 
+    /// <summary>视频/音频压缩样本透传（时间戳重写；时长用相邻样本差前瞻推断）</summary>
     private static void CopyStream(IntPtr reader, int streamIndex, Mp4SinkWriter writer,
         bool video, long trimStart, long trimEnd, double speed)
     {
-        // 前瞻一帧：透传时长用相邻时间戳差（解封装常缺 duration，兜底值会导致 MP4 轨不一致）
         long? pendingTs = null;
         byte[]? pendingData = null;
         long lastDuration = Ticks / 30;
-        long readMs = 0, writeMs = 0;
-        int count = 0;
 
         while (true)
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
             MfNative.ReaderReadSample(reader, streamIndex, out _, out var flags, out var ts, out var sample);
-            readMs += sw.ElapsedMilliseconds;
-            var end = (flags & 2) != 0 || sample == IntPtr.Zero; // MF_SOURCE_READERF_ENDOFSTREAM
+            var end = (flags & 2) != 0 || sample == IntPtr.Zero;
 
             long tsLocal = 0;
             byte[]? data = null;
@@ -134,10 +137,7 @@ public static class RecordingExporter
 
                 lastDuration = duration;
                 var outTime = (long)((pendingTs.Value - trimStart) / speed);
-                var sw2 = System.Diagnostics.Stopwatch.StartNew();
                 writer.WriteSampleTo(video, pendingData, outTime, (long)(duration / speed));
-                writeMs += sw2.ElapsedMilliseconds;
-                count++;
                 pendingTs = null;
                 pendingData = null;
             }
@@ -153,8 +153,122 @@ public static class RecordingExporter
                 pendingData = data;
             }
         }
+    }
 
-        System.Diagnostics.Trace.TraceInformation(
-            $"CopyStream({(video ? "video" : "audio")}): {count} samples, read={readMs}ms, write={writeMs}ms");
+    /// <summary>
+    /// 音频变速重编码：解码 PCM16/48k/立体声 → 线性插值重采样（音高随速）→ AAC。
+    /// 输出采样 k ↔ 源采样位置 p = startPos + k*speed，与视频的 (t-trimStart)/speed 同映射 → 音画同步。
+    /// </summary>
+    private static void TranscodeAudio(IntPtr reader, int audioIdx, Mp4SinkWriter writer,
+        long trimStart, long trimEnd, double speed)
+    {
+        // 解码为 PCM16/48k/立体声
+        MfNative.MFCreateMediaType(out var pcm);
+        MfNative.SetGuid(pcm, MfGuids.MajorType, MfGuids.MediaTypeAudio);
+        MfNative.SetGuid(pcm, MfGuids.Subtype, MfGuids.AudioFormatPcm);
+        MfNative.SetUInt32(pcm, MfGuids.AudioBitsPerSample, 16);
+        MfNative.SetUInt32(pcm, MfGuids.AudioSamplesPerSecond, SampleRate);
+        MfNative.SetUInt32(pcm, MfGuids.AudioNumChannels, 2);
+        MfNative.SetUInt32(pcm, MfGuids.AudioBlockAlignment, 4);
+        MfNative.SetUInt32(pcm, MfGuids.AudioAvgBytesPerSecond, SampleRate * 4);
+        MfNative.ReaderSetCurrentMediaType(reader, audioIdx, pcm);
+
+        // 收集解码 PCM（短片整条入内存可接受）
+        using var ms = new MemoryStream();
+        long firstTs = -1;
+        while (true)
+        {
+            MfNative.ReaderReadSample(reader, audioIdx, out _, out var flags, out var ts, out var sample);
+            if ((flags & 2) != 0 || sample == IntPtr.Zero)
+            {
+                break;
+            }
+
+            if (firstTs < 0)
+            {
+                firstTs = ts;
+            }
+
+            MfNative.SampleToContiguousBuffer(sample, out var buffer);
+            MfNative.BufferLock(buffer, out var ptr, out _, out var length);
+            try
+            {
+                var tmp = new byte[length];
+                Marshal.Copy(ptr, tmp, 0, length);
+                ms.Write(tmp, 0, length);
+            }
+            finally
+            {
+                MfNative.BufferUnlock(buffer);
+            }
+        }
+
+        var src = ms.ToArray();
+        var totalSamples = src.Length / SampleBytes;
+        if (totalSamples < 2 || firstTs < 0)
+        {
+            return;
+        }
+
+        var srcStartSec = firstTs / 1e7;
+        var startPos = (trimStart / 1e7 - srcStartSec) * SampleRate; // 输出 k=0 对应的源采样位置
+        var endPos = (trimEnd / 1e7 - srcStartSec) * SampleRate;
+
+        const int chunkSamples = SampleRate / 20; // 20ms 一块
+        var chunk = new byte[chunkSamples * SampleBytes];
+        var chunkIndex = 0;
+        long outStart = 0;
+
+        for (long k = 0; ; k++)
+        {
+            var p = startPos + k * speed;
+            if (p >= totalSamples - 1 || p >= endPos)
+            {
+                break;
+            }
+
+            if (p < 0)
+            {
+                outStart = k + 1;
+                continue;
+            }
+
+            // 线性插值（立体声：L/R 各自插值）——倍速即重采样，音高随速
+            var i0 = (long)p;
+            var frac = (float)(p - i0);
+            var o = chunkIndex * SampleBytes;
+            for (var ch = 0; ch < 2; ch++)
+            {
+                var i0off = (int)(i0 * SampleBytes) + ch * 2;
+                var i1off = (int)((i0 + 1) * SampleBytes) + ch * 2;
+                var s0 = (short)(src[i0off] | (src[i0off + 1] << 8));
+                var s1 = (short)(src[i1off] | (src[i1off + 1] << 8));
+                var v = (short)(s0 + (s1 - s0) * frac);
+                chunk[o + ch * 2] = (byte)(v & 0xFF);
+                chunk[o + ch * 2 + 1] = (byte)((v >> 8) & 0xFF);
+            }
+
+            chunkIndex++;
+            if (chunkIndex == chunkSamples)
+            {
+                FlushChunk(writer, chunk, chunkSamples, outStart);
+                outStart = k + 1;
+                chunkIndex = 0;
+            }
+        }
+
+        if (chunkIndex > 0)
+        {
+            var tail = new byte[chunkIndex * SampleBytes];
+            Array.Copy(chunk, tail, tail.Length);
+            FlushChunk(writer, tail, chunkIndex, outStart);
+        }
+    }
+
+    private static void FlushChunk(Mp4SinkWriter writer, byte[] data, int samples, long startSample)
+    {
+        var timeNs = startSample * Ticks / SampleRate;
+        var durNs = samples * Ticks / SampleRate;
+        writer.WriteAudioPcm16(data, data.Length, timeNs, durNs);
     }
 }
