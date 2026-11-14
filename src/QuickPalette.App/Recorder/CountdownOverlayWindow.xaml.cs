@@ -90,7 +90,27 @@ public partial class CountdownOverlayWindow : Window
                 CountdownCompleted?.Invoke();
             }
         };
-        Loaded += (_, _) => _timer.Start();
+        Loaded += (_, _) =>
+        {
+            // 多屏/混合 DPI 保险：PMv2 下 Win32 物理坐标最权威——再钉一次物理矩形，
+            // 并按窗口实际 DPI 重算内部布局（跨屏时 WPF 的 Left/Top 换算规则复杂，直接绕开）
+            try
+            {
+                var hwnd = new WindowInteropHelper(this).Handle;
+                SetWindowPos(hwnd, new IntPtr(-1 /* HWND_TOPMOST */),
+                    _screen.X, _screen.Y, _screen.Width, _screen.Height,
+                    0x0010 | 0x0040);
+                var dpi = GetDpiForWindow(hwnd);
+                var s = dpi > 0 ? dpi / 96.0 : scale;
+                ApplyLayout(s);
+            }
+            catch
+            {
+                // 忽略
+            }
+
+            _timer.Start();
+        };
     }
 
     /// <summary>DIP 布局：灰罩挖洞 + 选区边框 + 倒数数字定位（scale=目标屏 DPI/96）</summary>
@@ -107,9 +127,8 @@ public partial class CountdownOverlayWindow : Window
         var inner = new RectangleGeometry(new Rect(rx, ry, rw, rh));
         MaskPath.Data = new CombinedGeometry(GeometryCombineMode.Exclude, outer, inner);
 
-        RegionBorder.Margin = new Thickness(rx, ry, 0, 0);
-        RegionBorder.Width = rw;
-        RegionBorder.Height = rh;
+        // 边框与洞共用同一矩形几何（结构性保证不会错位）
+        RegionPath.Data = inner;
 
         // 倒数数字放选区中央（选区太矮则放屏幕中上部）
         if (rh >= 120)
@@ -150,6 +169,12 @@ public partial class CountdownOverlayWindow : Window
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(long point, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hWnd);
 
     [System.Runtime.InteropServices.DllImport("Shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr hmon, int type, out uint dpiX, out uint dpiY);

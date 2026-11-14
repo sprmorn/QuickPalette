@@ -13,11 +13,11 @@
         <!-- 全屏灰罩挖洞（Exclude）→ 突显录制区域 -->
         <Path x:Name="MaskPath" Fill="#59000000"/>
 
-        <!-- 选区高亮边框 -->
-        <Border x:Name="RegionBorder"
-                BorderBrush="#FF4CD964"
-                BorderThickness="2"
-                CornerRadius="2"/>
+        <!-- 选区高亮边框：与洞共用同一几何对象（结构上不可能错位） -->
+        <Path x:Name="RegionPath"
+              Stroke="#FF4CD964"
+              StrokeThickness="2"
+              IsHitTestVisible="False"/>
 
         <!-- 倒数数字 -->
         <TextBlock x:Name="CountText"
