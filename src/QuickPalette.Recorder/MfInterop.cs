@@ -12,7 +12,8 @@ public static class MfGuids
     public static readonly Guid VideoFormatRgb32 = new("00000016-0000-0010-8000-00AA00389B71");
     public static readonly Guid VideoFormatH264 = new("34363248-0000-0010-8000-00AA00389B71");
     public static readonly Guid AudioFormatPcm = new("00000001-0000-0010-8000-00AA00389B71");
-    public static readonly Guid AudioFormatAac = new("00000161-0000-0010-8000-00AA00389B71");
+    public static readonly Guid AudioFormatFloat = new("00000003-0000-0010-8000-00AA00389B71");
+    public static readonly Guid AudioFormatAac = new("00001610-0000-0010-8000-00AA00389B71"); // MFAudioFormat_AAC（NAudio 权威常量）
 
     // 媒体类型属性
     public static readonly Guid MajorType = new("48EBA18E-F8C9-4687-BF11-0A74C9F96A8F");

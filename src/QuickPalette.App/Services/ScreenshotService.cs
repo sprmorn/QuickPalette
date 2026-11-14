@@ -102,6 +102,7 @@ public sealed class ScreenshotService : IDisposable
             overlay.Saved += OnSaved;
             overlay.Pinned += OnPinned;
             overlay.LongCaptureRequested += rect => OnLongCaptureRequested(overlay, rect);
+            overlay.RecordRequested += rect => OnRecordRequested(overlay, rect);
             overlay.Exited += HideAll;
             _overlays.Add(overlay);
         }
@@ -221,6 +222,24 @@ public sealed class ScreenshotService : IDisposable
     {
         CreatePin(image, pixelOrigin);
         HideAll();
+    }
+
+    /// <summary>请求录屏（携带选区屏幕像素矩形）；App 层接管录制编排</summary>
+    public event Action<System.Drawing.Rectangle>? RecordingRequested;
+
+    /// <summary>进入录屏：隐藏覆盖层，选区交给录制编排</summary>
+    private void OnRecordRequested(OverlayWindow source, System.Drawing.Rectangle region)
+    {
+        try
+        {
+            HideAll();
+            _logger.Information("Recording requested: {Region}", region);
+            RecordingRequested?.Invoke(region);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Start recording failed");
+        }
     }
 
     private void HideAll()

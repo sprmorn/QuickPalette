@@ -604,6 +604,81 @@
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
+
+                            <!-- 录屏 -->
+                            <Border Background="{DynamicResource BgCard}"
+                                    CornerRadius="8"
+                                    Padding="15"
+                                    Margin="0,0,0,15">
+                                <StackPanel>
+                                    <TextBlock Text="录制"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontSize="14"
+                                               FontWeight="Medium"
+                                               Margin="0,0,0,5"/>
+                                    <TextBlock Text="截图框选后点工具条「录屏」按钮进入录制；录制中显示细条条（计时/麦克风/系统声音/暂停/停止）。"
+                                               Foreground="{DynamicResource TextDim2}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,10"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="帧率"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="RecordFpsBox" Width="92" VerticalAlignment="Center">
+                                            <ComboBoxItem Content="15 fps" Tag="15"/>
+                                            <ComboBoxItem Content="24 fps" Tag="24"/>
+                                            <ComboBoxItem Content="30 fps" Tag="30" IsSelected="True"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <CheckBox x:Name="RecordMicCheckBox"
+                                              Content="默认开启麦克风"
+                                              Margin="0,0,0,6"/>
+                                    <CheckBox x:Name="RecordSystemAudioCheckBox"
+                                              Content="默认录制系统声音（内录）"
+                                              Margin="0,0,0,10"/>
+
+                                    <TextBlock x:Name="RecordSaveDirLabel"
+                                               Text="保存目录"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="RecordSaveDirBox"
+                                                 Style="{StaticResource InputStyle}"/>
+                                        <Button Grid.Column="1" Content="浏览…"
+                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                Click="RecordBrowse_Click"
+                                                Margin="8,0,0,0"/>
+                                    </Grid>
+                                    <TextBlock x:Name="RecordSaveDirHint"
+                                               Foreground="{DynamicResource TextDim2}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,6"/>
+
+                                    <TextBlock x:Name="RecordTemplateLabel"
+                                               Text="文件名模板"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="13"
+                                               Margin="0,0,0,4"/>
+                                    <TextBox x:Name="RecordTemplateBox"
+                                             Style="{StaticResource InputStyle}"
+                                             Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="RecordTemplateHint"
+                                               Foreground="{DynamicResource TextDim2}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

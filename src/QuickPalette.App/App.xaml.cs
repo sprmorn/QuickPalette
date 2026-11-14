@@ -36,10 +36,11 @@ public partial class App : System.Windows.Application
     /// <summary>截图全局热键（独立实例：与主唤起热键互不影响、互不回滚）</summary>
     private HotkeyService? _screenshotHotkeyService;
 
-    /// <summary>工具箱/小助手：置顶窗口热键、U盘监听、链接助手</summary>
+    /// <summary>工具箱/小助手：置顶窗口热键、U盘监听、链接助手、录屏编排</summary>
     private HotkeyService? _topmostHotkeyService;
     private UsbDriveMonitor? _usbMonitor;
     private LinkAssistantService? _linkAssistant;
+    private Recorder.RecordingService? _recordingService;
     private ForegroundWindowTracker? _foregroundTracker;
     private JsonRepository? _repository;
     private LauncherManager? _launcherManager;
@@ -192,6 +193,25 @@ public partial class App : System.Windows.Application
 
             // 12b. 截图服务 + 截图全局热键（独立实例，失败不阻塞启动）
             _screenshotService = new ScreenshotService(_logger, settings);
+
+            // 12b-2. 录屏编排（选区 → WGC 录制 → 细条条 → 编辑窗）
+            _recordingService = new Recorder.RecordingService(_logger, settings);
+            _screenshotService.RecordingRequested += region => _recordingService.Start(region);
+
+            // 测试/运维入口：--record-test 直接录制一块区域（验证录制 UI/落盘）
+            var argv = Environment.GetCommandLineArgs();
+            _logger.Information("--record-test 检查: [{Args}]", string.Join(",", argv));
+            if (argv.Any(a => string.Equals(a, "--record-test", StringComparison.OrdinalIgnoreCase)))
+            {
+                _logger.Information("--record-test 命中，启动测试录制（4 秒后自动停止）");
+                Dispatcher.BeginInvoke(() => _recordingService!.Start(new System.Drawing.Rectangle(400, 300, 500, 300)));
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(4000);
+                    await Dispatcher.InvokeAsync(() => _recordingService?.RequestStop());
+                });
+            }
+
             try
             {
                 _screenshotHotkeyService = new HotkeyService(_logger);
@@ -619,6 +639,7 @@ public partial class App : System.Windows.Application
 
             // 截图模块热更新（设置 + 截图热键）
             _screenshotService?.UpdateSettings(updated);
+            _recordingService?.UpdateSettings(updated);
             UpdateScreenshotHotkey(updated.ScreenshotHotkey);
 
             // 工具箱热更新（置顶热键 + U盘小助手）

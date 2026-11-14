@@ -101,6 +101,9 @@ public partial class OverlayWindow : Window
     /// <summary>请求长截图（携带选区屏幕像素矩形）；主覆盖层由服务隐藏，进入滚动采集</summary>
     public event Action<System.Drawing.Rectangle>? LongCaptureRequested;
 
+    /// <summary>请求录屏（携带选区屏幕像素矩形）；主覆盖层由服务隐藏，进入录制</summary>
+    public event Action<System.Drawing.Rectangle>? RecordRequested;
+
     public event Action? Exited;
 
     public OverlayWindow(ILogger logger)
@@ -355,6 +358,13 @@ public partial class OverlayWindow : Window
             if (_hasSelection)
             {
                 LongCaptureRequested?.Invoke(GetSelectionPixelBounds());
+            }
+        };
+        Toolbar.RecordRequested += () =>
+        {
+            if (_hasSelection)
+            {
+                RecordRequested?.Invoke(GetSelectionPixelBounds());
             }
         };
         Toolbar.ExitRequested += Exit;

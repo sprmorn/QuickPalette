@@ -169,6 +169,23 @@ public class Settings
     /// <summary>智能直跳：轻量嗅探邀请页提取真实协议直接打开客户端（失败自动回退浏览器）</summary>
     public bool LinkSmartJump { get; set; } = true;
 
+    // ---------- 录屏 ----------
+
+    /// <summary>录屏帧率（15/24/30）</summary>
+    public int RecordFps { get; set; } = 30;
+
+    /// <summary>录屏默认开启麦克风</summary>
+    public bool RecordMicEnabled { get; set; }
+
+    /// <summary>录屏默认录制系统声音（内录）</summary>
+    public bool RecordSystemAudioEnabled { get; set; } = true;
+
+    /// <summary>录屏保存目录（空=默认 %USERPROFILE%\Videos\轻启录制\）</summary>
+    public string RecordSaveDir { get; set; } = string.Empty;
+
+    /// <summary>录屏文件名模板</summary>
+    public string RecordFileNameTemplate { get; set; } = "录屏_yyyyMMdd_HHmmss";
+
     /// <summary>
     /// Schema 版本号
     /// </summary>

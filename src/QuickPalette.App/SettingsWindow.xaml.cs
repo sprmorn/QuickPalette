@@ -334,6 +334,28 @@ public partial class SettingsWindow : Window
 
             LinkSmartJumpCheckBox.IsChecked = _settings.LinkSmartJump;
 
+            // 录屏
+            foreach (ComboBoxItem item in RecordFpsBox.Items)
+            {
+                if ((item.Tag as string) == _settings.RecordFps.ToString())
+                {
+                    RecordFpsBox.SelectedItem = item;
+                    break;
+                }
+            }
+
+            if (RecordFpsBox.SelectedItem == null)
+            {
+                RecordFpsBox.SelectedIndex = 2;
+            }
+
+            RecordMicCheckBox.IsChecked = _settings.RecordMicEnabled;
+            RecordSystemAudioCheckBox.IsChecked = _settings.RecordSystemAudioEnabled;
+            RecordSaveDirBox.Text = string.IsNullOrWhiteSpace(_settings.RecordSaveDir)
+                ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "轻启录制")
+                : _settings.RecordSaveDir;
+            RecordTemplateBox.Text = _settings.RecordFileNameTemplate;
+
             // 主题单选回显
             var theme = _settings.Theme?.Trim().ToLowerInvariant();
             ThemeLight.IsChecked = theme == "light";
@@ -1032,6 +1054,19 @@ public partial class SettingsWindow : Window
 
             _settings.LinkSmartJump = LinkSmartJumpCheckBox.IsChecked == true;
 
+            // 录屏
+            if (int.TryParse((RecordFpsBox.SelectedItem as ComboBoxItem)?.Tag as string, out var recordFps))
+            {
+                _settings.RecordFps = recordFps;
+            }
+
+            _settings.RecordMicEnabled = RecordMicCheckBox.IsChecked == true;
+            _settings.RecordSystemAudioEnabled = RecordSystemAudioCheckBox.IsChecked == true;
+            _settings.RecordSaveDir = RecordSaveDirBox.Text.Trim();
+            _settings.RecordFileNameTemplate = string.IsNullOrWhiteSpace(RecordTemplateBox.Text)
+                ? "录屏_yyyyMMdd_HHmmss"
+                : RecordTemplateBox.Text.Trim();
+
             // 热键一致性：保存时统一注册 _settings.Hotkey；
             // 注册失败则中止保存（避免运行注册与 settings.json 不一致）
             if (!_hotkeyService.RegisterHotkey(_settings.Hotkey, _onHotkeyPressed))
@@ -1111,6 +1146,26 @@ public partial class SettingsWindow : Window
             {
                 item.IsSelected = true;
             }
+        }
+    }
+
+    /// <summary>浏览录屏保存目录</summary>
+    private void RecordBrowse_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "录屏保存目录"
+            };
+            if (dialog.ShowDialog(this) == true)
+            {
+                RecordSaveDirBox.Text = dialog.FolderName;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Browse record dir failed");
         }
     }
 

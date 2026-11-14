@@ -138,6 +138,26 @@ public sealed class RecordingSession : IDisposable
         }
     }
 
+    /// <summary>录制中切换麦克风开关</summary>
+    public void SetMicEnabled(bool enabled)
+    {
+        if (_audio != null)
+        {
+            _audio.MicEnabled = enabled;
+            _logger.Information("Mic enabled: {Enabled}", enabled);
+        }
+    }
+
+    /// <summary>录制中切换系统声音开关</summary>
+    public void SetLoopbackEnabled(bool enabled)
+    {
+        if (_audio != null)
+        {
+            _audio.LoopbackEnabled = enabled;
+            _logger.Information("Loopback enabled: {Enabled}", enabled);
+        }
+    }
+
     public void Resume()
     {
         lock (_sync)
