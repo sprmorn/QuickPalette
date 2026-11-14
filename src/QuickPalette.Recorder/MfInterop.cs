@@ -31,4 +31,7 @@ public static class MfGuids
     public static readonly Guid DefaultStride = new("644B4E48-1E02-4516-B0EB-C01CA9D49AC6");
     public static readonly Guid AacPayloadType = new("BFBABE79-7434-4D1C-94F0-72A3B9E17188");
     public static readonly Guid AacProfileLevel = new("7632F0E6-9538-4D61-ACDA-EA29C8C14456");
+
+    // SinkWriter 属性
+    public static readonly Guid SinkWriterDisableThrottling = new("08B845D8-2B74-4AFE-9D53-BE16D2D5AE4F");
 }

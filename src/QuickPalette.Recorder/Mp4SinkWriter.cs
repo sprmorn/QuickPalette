@@ -1,5 +1,6 @@
 namespace QuickPalette.Recorder;
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 /// <summary>
@@ -33,7 +34,7 @@ public sealed class Mp4SinkWriter : IDisposable
         _videoStride = width * 4;
 
         MfNative.EnsureStarted();
-        MfNative.MFCreateSinkWriterFromURL(outputPath, IntPtr.Zero, IntPtr.Zero, out _writer);
+        MfNative.MFCreateSinkWriterFromURL(outputPath, IntPtr.Zero, MfNative.CreateNoThrottleAttributes(), out _writer);
 
         // ---- 视频：输出 H.264 ← 输入 RGB32 ----
         MfNative.MFCreateMediaType(out var videoOut);
@@ -86,7 +87,7 @@ public sealed class Mp4SinkWriter : IDisposable
     {
         var w = new Mp4SinkWriter();
         MfNative.EnsureStarted();
-        MfNative.MFCreateSinkWriterFromURL(outputPath, IntPtr.Zero, IntPtr.Zero, out w._writer);
+        MfNative.MFCreateSinkWriterFromURL(outputPath, IntPtr.Zero, MfNative.CreateNoThrottleAttributes(), out w._writer);
 
         MfNative.SinkAddStream(w._writer, videoNative, out w._videoStream);
         MfNative.SinkSetInputMediaType(w._writer, w._videoStream, videoNative);

@@ -42,6 +42,9 @@ public static class MfNative
     public static extern int MFCreateMediaType(out IntPtr type);
 
     [DllImport("mfplat.dll")]
+    public static extern int MFCreateAttributes(out IntPtr attributes, int initialSize);
+
+    [DllImport("mfplat.dll")]
     public static extern int MFCreateSample(out IntPtr sample);
 
     [DllImport("mfplat.dll")]
@@ -63,6 +66,14 @@ public static class MfNative
     }
 
     // ---- IMFAttributes（槽位依 NAudio 声明序）----
+
+    /// <summary>创建禁用节流的 SinkWriter 属性集（否则写样本被限速，导出奇慢）</summary>
+    public static IntPtr CreateNoThrottleAttributes()
+    {
+        Check(MFCreateAttributes(out var attrs, 1));
+        SetUInt32(attrs, MfGuids.SinkWriterDisableThrottling, 1);
+        return attrs;
+    }
 
     public static void SetUInt32(IntPtr type, in Guid key, uint value)
     {
@@ -117,6 +128,8 @@ public static class MfNative
 
     public static void SampleToContiguousBuffer(IntPtr sample, out IntPtr buffer) => Check(Fn<SampleToContiguousFn>(sample, 41)(sample, out buffer));
 
+    public static void SampleGetTotalLength(IntPtr sample, out long totalLength) => Check(Fn<SampleGetTotalLengthFn>(sample, 45)(sample, out totalLength));
+
     // ---- IMFSinkWriter ----
 
     public static void SinkAddStream(IntPtr writer, IntPtr mediaType, out int streamIndex)
@@ -163,6 +176,7 @@ public static class MfNative
     [UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int SampleGetDurationFn(IntPtr self, out long duration);
     [UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int SampleAddBufferFn(IntPtr self, IntPtr buffer);
     [UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int SampleToContiguousFn(IntPtr self, out IntPtr buffer);
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int SampleGetTotalLengthFn(IntPtr self, out long totalLength);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int SinkAddStreamFn(IntPtr self, IntPtr mediaType, out int streamIndex);
     [UnmanagedFunctionPointer(CallingConvention.StdCall)] public delegate int SinkSetInputFn(IntPtr self, int streamIndex, IntPtr mediaType, IntPtr encodingParameters);

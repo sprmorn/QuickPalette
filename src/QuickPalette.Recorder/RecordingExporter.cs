@@ -1,5 +1,6 @@
-﻿namespace QuickPalette.Recorder;
+namespace QuickPalette.Recorder;
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 /// <summary>
@@ -90,10 +91,14 @@ public static class RecordingExporter
         long? pendingTs = null;
         byte[]? pendingData = null;
         long lastDuration = Ticks / 30;
+        long readMs = 0, writeMs = 0;
+        int count = 0;
 
         while (true)
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             MfNative.ReaderReadSample(reader, streamIndex, out _, out var flags, out var ts, out var sample);
+            readMs += sw.ElapsedMilliseconds;
             var end = (flags & 2) != 0 || sample == IntPtr.Zero; // MF_SOURCE_READERF_ENDOFSTREAM
 
             long tsLocal = 0;
@@ -104,11 +109,13 @@ public static class RecordingExporter
                 if (tsLocal >= trimStart && tsLocal <= trimEnd)
                 {
                     MfNative.SampleToContiguousBuffer(sample, out var buffer);
+                    MfNative.SampleGetTotalLength(sample, out var totalLength);
                     MfNative.BufferLock(buffer, out var ptr, out _, out var length);
                     try
                     {
-                        data = new byte[length];
-                        Marshal.Copy(ptr, data, 0, length);
+                        var n = (int)Math.Min(length, totalLength);
+                        data = new byte[n];
+                        Marshal.Copy(ptr, data, 0, n);
                     }
                     finally
                     {
@@ -127,7 +134,10 @@ public static class RecordingExporter
 
                 lastDuration = duration;
                 var outTime = (long)((pendingTs.Value - trimStart) / speed);
+                var sw2 = System.Diagnostics.Stopwatch.StartNew();
                 writer.WriteSampleTo(video, pendingData, outTime, (long)(duration / speed));
+                writeMs += sw2.ElapsedMilliseconds;
+                count++;
                 pendingTs = null;
                 pendingData = null;
             }
@@ -143,5 +153,8 @@ public static class RecordingExporter
                 pendingData = data;
             }
         }
+
+        System.Diagnostics.Trace.TraceInformation(
+            $"CopyStream({(video ? "video" : "audio")}): {count} samples, read={readMs}ms, write={writeMs}ms");
     }
 }
