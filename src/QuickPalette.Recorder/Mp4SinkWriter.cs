@@ -1,4 +1,4 @@
-﻿namespace QuickPalette.Recorder;
+namespace QuickPalette.Recorder;
 
 using System.Runtime.InteropServices;
 
@@ -32,7 +32,7 @@ public sealed class Mp4SinkWriter : IDisposable
         _hasAudio = hasAudio;
         _videoStride = width * 4;
 
-        MfNative.MFStartup(MfNative.Version, 0);
+        MfNative.EnsureStarted();
         MfNative.MFCreateSinkWriterFromURL(outputPath, IntPtr.Zero, IntPtr.Zero, out _writer);
 
         // ---- 视频：输出 H.264 ← 输入 RGB32 ----
@@ -85,7 +85,7 @@ public sealed class Mp4SinkWriter : IDisposable
     public static Mp4SinkWriter CreateRemux(string outputPath, IntPtr videoNative, IntPtr audioNative)
     {
         var w = new Mp4SinkWriter();
-        MfNative.MFStartup(MfNative.Version, 0);
+        MfNative.EnsureStarted();
         MfNative.MFCreateSinkWriterFromURL(outputPath, IntPtr.Zero, IntPtr.Zero, out w._writer);
 
         MfNative.SinkAddStream(w._writer, videoNative, out w._videoStream);
@@ -134,7 +134,23 @@ public sealed class Mp4SinkWriter : IDisposable
         MfNative.BufferLock(buffer, out var ptr, out _, out _);
         try
         {
-            Marshal.Copy(data, 0, ptr, copyLength);
+            if (video && _videoStride > 0)
+            {
+                // 录制帧：源为 top-down BGRA，MF 约定 RGB32 为 bottom-up（自底向上）——
+                // 逐行倒序拷入，否则成品画面上下颠倒（实测坑）
+                var stride = _videoStride;
+                var rows = _height;
+                for (var y = 0; y < rows; y++)
+                {
+                    var srcOffset = (rows - 1 - y) * stride;
+                    Marshal.Copy(data, srcOffset, new IntPtr(ptr.ToInt64() + (long)y * stride), stride);
+                }
+            }
+            else
+            {
+                // 透传样本：原样搬运
+                Marshal.Copy(data, 0, ptr, copyLength);
+            }
         }
         finally
         {
@@ -198,8 +214,6 @@ public sealed class Mp4SinkWriter : IDisposable
                 Marshal.Release(_writer);
                 _writer = IntPtr.Zero;
             }
-
-            MfNative.MFShutdown();
         }
         catch
         {

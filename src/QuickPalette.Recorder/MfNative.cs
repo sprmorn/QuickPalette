@@ -15,6 +15,23 @@ public static class MfNative
 
     // ---- 工厂 ----
 
+    private static readonly object StartupLock = new();
+    private static bool _mfStarted;
+
+    /// <summary>进程内只启动一次、永不关闭：反复 MFShutdown/MFStartup 后
+    /// 编码器 MFT 协商会报 MF_E_INVALIDMEDIATYPE（实测：二次录制失败）</summary>
+    public static void EnsureStarted()
+    {
+        lock (StartupLock)
+        {
+            if (!_mfStarted)
+            {
+                MFStartup(Version, 0);
+                _mfStarted = true;
+            }
+        }
+    }
+
     [DllImport("mfplat.dll")]
     public static extern int MFStartup(uint version, uint flags);
 

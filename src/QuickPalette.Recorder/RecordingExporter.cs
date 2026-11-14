@@ -23,7 +23,7 @@ public static class RecordingExporter
             return;
         }
 
-        MfNative.MFStartup(MfNative.Version, 0);
+        MfNative.EnsureStarted();
         try
         {
             MfNative.MFCreateSourceReaderFromURL(inputPath, IntPtr.Zero, out var reader);
@@ -80,7 +80,6 @@ public static class RecordingExporter
         }
         finally
         {
-            MfNative.MFShutdown();
         }
     }
 

@@ -149,36 +149,65 @@ public partial class RecordingEditWindow : Window
         return start > 0.05 || end < _duration.TotalSeconds - 0.05 || Math.Abs(speed - 1) > 0.001;
     }
 
-    /// <summary>导出当前编辑结果（裁剪+倍速）；未编辑则直接用原文件</summary>
-    private string? ProduceEdited(string targetPath)
+    /// <summary>导出前释放预览占用（WMP 持有文件句柄会让 SourceReader 挂起 → 界面假死）</summary>
+    private void ReleasePreview()
     {
         try
         {
-            var (start, end, speed) = CurrentEdit();
-            if (!IsEdited())
-            {
-                File.Copy(_sourcePath, targetPath, overwrite: true);
-                return targetPath;
-            }
-
-            RecordingExporter.Export(_sourcePath, targetPath, start, end, speed);
-            return targetPath;
+            Preview.Stop();
+            Preview.Source = null;
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.Error(ex, "Export failed");
-            MessageBox.Show($"导出失败：{ex.Message}", "录屏", MessageBoxButton.OK, MessageBoxImage.Error);
-            return null;
+            // 忽略
         }
     }
 
-    private void Copy_Click(object sender, RoutedEventArgs e)
+    private bool _exporting;
+
+    /// <summary>后台线程导出当前编辑结果；未编辑则复制原文件</summary>
+    private async Task<string?> ProduceEditedAsync(string targetPath)
     {
+        ReleasePreview();
+        var (start, end, speed) = CurrentEdit();
+        var source = _sourcePath;
+        var edited = IsEdited();
+        return await Task.Run(() =>
+        {
+            try
+            {
+                if (!edited)
+                {
+                    File.Copy(source, targetPath, overwrite: true);
+                    return targetPath;
+                }
+
+                RecordingExporter.Export(source, targetPath, start, end, speed);
+                return targetPath;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Export failed");
+                return null;
+            }
+        });
+    }
+
+    private async void Copy_Click(object sender, RoutedEventArgs e)
+    {
+        if (_exporting)
+        {
+            return;
+        }
+
         try
         {
+            _exporting = true;
             var temp = Path.Combine(Path.GetTempPath(), $"轻启录屏_{DateTime.Now:HHmmss}.mp4");
-            if (ProduceEdited(temp) == null)
+            var result = await ProduceEditedAsync(temp);
+            if (result == null)
             {
+                MessageBox.Show("导出失败，请查看日志。", "录屏", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -192,31 +221,80 @@ public partial class RecordingEditWindow : Window
         {
             _logger.Error(ex, "Copy failed");
         }
-    }
-
-    private void Save_Click(object sender, RoutedEventArgs e)
-    {
-        var dir = string.IsNullOrWhiteSpace(_settings.RecordSaveDir)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "轻启录制")
-            : _settings.RecordSaveDir;
-        Directory.CreateDirectory(dir);
-        var target = Path.Combine(dir, $"录屏_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
-        if (ProduceEdited(target) != null)
+        finally
         {
-            MessageBox.Show($"已保存：\n{target}", "录屏", MessageBoxButton.OK, MessageBoxImage.Information);
+            _exporting = false;
         }
     }
 
-    private void SaveAs_Click(object sender, RoutedEventArgs e)
+    private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_exporting)
+        {
+            return;
+        }
+
+        try
+        {
+            _exporting = true;
+            var dir = string.IsNullOrWhiteSpace(_settings.RecordSaveDir)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "轻启录制")
+                : _settings.RecordSaveDir;
+            Directory.CreateDirectory(dir);
+            var target = Path.Combine(dir, $"录屏_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
+            var result = await ProduceEditedAsync(target);
+            if (result != null)
+            {
+                MessageBox.Show($"已保存：\n{target}", "录屏", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show("导出失败，请查看日志。", "录屏", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Save failed");
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    private async void SaveAs_Click(object sender, RoutedEventArgs e)
+    {
+        if (_exporting)
+        {
+            return;
+        }
+
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "MP4 视频|*.mp4",
             FileName = $"录屏_{DateTime.Now:yyyyMMdd_HHmmss}.mp4"
         };
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() != true)
         {
-            ProduceEdited(dialog.FileName);
+            return;
+        }
+
+        try
+        {
+            _exporting = true;
+            var result = await ProduceEditedAsync(dialog.FileName);
+            if (result == null)
+            {
+                MessageBox.Show("导出失败，请查看日志。", "录屏", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "SaveAs failed");
+        }
+        finally
+        {
+            _exporting = false;
         }
     }
 }
