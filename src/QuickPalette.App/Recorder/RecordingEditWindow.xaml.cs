@@ -19,6 +19,7 @@ public partial class RecordingEditWindow : Window
 {
     private readonly ILogger _logger;
     private readonly string _sourcePath;
+    private readonly string _previewPath;
     private readonly Settings _settings;
     private readonly DispatcherTimer _clock;
     private TimeSpan _duration;
@@ -32,11 +33,16 @@ public partial class RecordingEditWindow : Window
         _sourcePath = sourcePath;
         _settings = settings;
 
+        // 预览用临时副本：WPF MediaElement（WMP）释放文件句柄不可靠（Source=null 后仍可能持锁），
+        // 导出若读同一文件会被锁挂死（实测：0KB 目标、无任何弹窗）——预览/导出彻底隔离
+        _previewPath = Path.Combine(Path.GetTempPath(), $"轻启预览_{Guid.NewGuid():N}.mp4");
+        File.Copy(sourcePath, _previewPath, overwrite: true);
+
         TitleIconHost.Content = ToolbarIcons.Create("rec-camera", 18);
         SpeedIconHost.Content = ToolbarIcons.Create("rec-speed", 16, Brushes.Gray);
         CropIconHost.Content = ToolbarIcons.Create("rec-crop", 15, Brushes.Gray);
 
-        Preview.Source = new Uri(sourcePath);
+        Preview.Source = new Uri(_previewPath);
         Preview.MediaOpened += (_, _) =>
         {
             if (Preview.NaturalDuration.HasTimeSpan)
@@ -54,7 +60,20 @@ public partial class RecordingEditWindow : Window
         _clock.Tick += (_, _) => TimeText.Text = $"{Format(Preview.Position)} / {Format(_duration)}";
         _clock.Start();
 
-        Closed += (_, _) => _clock.Stop();
+        Closed += (_, _) =>
+        {
+            _clock.Stop();
+            try
+            {
+                Preview.Stop();
+                Preview.Source = null;
+                File.Delete(_previewPath);
+            }
+            catch
+            {
+                // 清理失败忽略（%TEMP% 会被系统回收）
+            }
+        };
     }
 
     private static string Format(TimeSpan t) => $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
@@ -165,14 +184,14 @@ public partial class RecordingEditWindow : Window
 
     private bool _exporting;
 
-    /// <summary>后台线程导出当前编辑结果；未编辑则复制原文件</summary>
+    /// <summary>后台线程导出当前编辑结果；未编辑则复制原文件。30 秒超时兜底（防止锁等待挂死无提示）</summary>
     private async Task<string?> ProduceEditedAsync(string targetPath)
     {
         ReleasePreview();
         var (start, end, speed) = CurrentEdit();
         var source = _sourcePath;
         var edited = IsEdited();
-        return await Task.Run(() =>
+        var exportTask = Task.Run(() =>
         {
             try
             {
@@ -191,6 +210,15 @@ public partial class RecordingEditWindow : Window
                 return null;
             }
         });
+
+        var done = await Task.WhenAny(exportTask, Task.Delay(TimeSpan.FromSeconds(30)));
+        if (done != exportTask)
+        {
+            _logger.Error("Export timed out after 30s");
+            return null;
+        }
+
+        return await exportTask;
     }
 
     private async void Copy_Click(object sender, RoutedEventArgs e)
