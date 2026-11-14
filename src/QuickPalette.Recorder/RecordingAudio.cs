@@ -65,9 +65,11 @@ public sealed class RecordingAudio : IDisposable
         }
     }
 
-    /// <summary>统一为 48kHz/float/立体声（BufferedWaveProvider 读空补静音 → 时间轴连续）</summary>
+    /// <summary>统一为 48kHz/float/立体声。ReadFully=false：读空如实返回（不足不补静音——
+    /// 静音填充会造成周期性断声=顿音，实测坑）</summary>
     private static ISampleProvider Normalize(BufferedWaveProvider buffer)
     {
+        buffer.ReadFully = false;
         ISampleProvider provider = new SampleChannel(buffer);
         if (provider.WaveFormat.Channels == 1)
         {
@@ -82,46 +84,114 @@ public sealed class RecordingAudio : IDisposable
         return provider;
     }
 
-    /// <summary>读一段混音 PCM16 立体声（不足补静音）；返回写入字节数（恒为 maxBytes）</summary>
+    // 每路未用完的余量（本圈多读的留到下圈先用，数据零丢弃）
+    private readonly float[] _micCarry = new float[TargetRate];
+    private int _micCarryLen;
+    private readonly float[] _loopCarry = new float[TargetRate];
+    private int _loopCarryLen;
+
+    /// <summary>读一段混音 PCM16 立体声；有多少读多少（不足等下圈，绝不掺静音）；返回实际写入字节数</summary>
     public int ReadPcm16(byte[] target, int maxBytes)
     {
-        var byteCount = Math.Min(maxBytes, (maxBytes / 4) * 4); // 4 字节/采样（16bit×2ch）
-        var samples = byteCount / 2; // 单声道采样点数（含双声道）→ 用 float 计：float 数 = byteCount/2? 不——
-        // 统一按 float 采样点处理：float 数 = byteCount / 2（16bit=2字节），即 byteCount/4 个立体声帧 ×2
-        var floats = byteCount / 2;
-        var mix = new float[floats];
-        var tmp = new float[floats];
+        var frames = Math.Min(maxBytes / 4, TargetRate / 25); // 立体声 16bit = 4B/帧
+        if (frames <= 0)
+        {
+            return 0;
+        }
+
+        var micBuf = new float[frames * 2];
+        var loopBuf = new float[frames * 2];
+        int micN = 0, loopN = 0;
 
         lock (_sync)
         {
-            if (MicEnabled && _micProvider != null)
+            var micActive = MicEnabled && _micProvider != null;
+            var loopActive = LoopbackEnabled && _loopProvider != null;
+            if (!micActive && !loopActive)
             {
-                var n = _micProvider.Read(tmp, 0, floats);
-                for (var i = 0; i < n; i++)
-                {
-                    mix[i] += tmp[i];
-                }
+                return 0;
             }
 
-            if (LoopbackEnabled && _loopProvider != null)
+            if (micActive)
             {
-                Array.Clear(tmp);
-                var n = _loopProvider.Read(tmp, 0, floats);
-                for (var i = 0; i < n; i++)
-                {
-                    mix[i] += tmp[i];
-                }
+                micN = Pull(_micProvider, _micCarry, ref _micCarryLen, micBuf, frames);
+            }
+
+            if (loopActive)
+            {
+                loopN = Pull(_loopProvider, _loopCarry, ref _loopCarryLen, loopBuf, frames);
             }
         }
 
-        for (var i = 0; i < floats; i++)
+        // 双路取对齐长度；多余部分退回 carry（零丢弃）
+        int n = micN > 0 && loopN > 0 ? Math.Min(micN, loopN) : Math.Max(micN, loopN);
+        if (n <= 0)
         {
-            var v = (short)(Math.Clamp(mix[i], -1f, 1f) * short.MaxValue);
+            return 0;
+        }
+
+        lock (_sync)
+        {
+            if (micN > n)
+            {
+                PushBack(_micCarry, ref _micCarryLen, micBuf, n * 2, (micN - n) * 2);
+            }
+
+            if (loopN > n)
+            {
+                PushBack(_loopCarry, ref _loopCarryLen, loopBuf, n * 2, (loopN - n) * 2);
+            }
+        }
+
+        for (var i = 0; i < n * 2; i++)
+        {
+            var v = (short)(Math.Clamp(micBuf[i] + loopBuf[i], -1f, 1f) * short.MaxValue);
             target[i * 2] = (byte)(v & 0xFF);
             target[i * 2 + 1] = (byte)((v >> 8) & 0xFF);
         }
 
-        return byteCount;
+        return n * 4;
+    }
+
+    /// <summary>把未消费的余量插回 carry 头部</summary>
+    private static void PushBack(float[] carry, ref int carryLen, float[] src, int srcOffset, int countFloats)
+    {
+        if (carryLen + countFloats > carry.Length)
+        {
+            countFloats = carry.Length - carryLen;
+            if (countFloats <= 0)
+            {
+                return;
+            }
+        }
+
+        Array.Copy(carry, 0, carry, countFloats, carryLen);
+        Array.Copy(src, srcOffset, carry, 0, countFloats);
+        carryLen += countFloats;
+    }
+
+    /// <summary>从 carry+采集缓冲拉取 frames 个立体声帧（不足如实返回；多读存 carry）</summary>
+    private static int Pull(ISampleProvider provider, float[] carry, ref int carryLen, float[] dst, int frames)
+    {
+        var need = frames * 2;
+        var got = 0;
+
+        // 先用余量
+        var fromCarry = Math.Min(carryLen, need);
+        Array.Copy(carry, 0, dst, 0, fromCarry);
+        got += fromCarry;
+        carryLen -= fromCarry;
+        if (carryLen > 0)
+        {
+            Array.Copy(carry, fromCarry, carry, 0, carryLen);
+        }
+
+        // 再读新数据（如实：读到多少算多少）
+        var read = provider.Read(dst, got, need - got);
+        got += read;
+
+        // 末尾这段若被两路 min 裁掉，由调用方把差量退回——此处多读的天然留在 dst，调用方裁剪时按帧对齐丢回 carry
+        return got / 2;
     }
 
     private readonly float[] _scratchFloats = new float[RecordingAudio.TargetRate / 25 * 2];
@@ -131,6 +201,8 @@ public sealed class RecordingAudio : IDisposable
     {
         lock (_sync)
         {
+            _micCarryLen = 0;
+            _loopCarryLen = 0;
             _micProvider?.Read(_scratchFloats, 0, _scratchFloats.Length);
             _loopProvider?.Read(_scratchFloats, 0, _scratchFloats.Length);
         }
