@@ -92,6 +92,9 @@ public sealed class RecordingSession : IDisposable
     private long _firstFrameNs = -1;
     private long _audioBytesWritten;
     private readonly ManualResetEventSlim _audioReady = new(false);
+    private readonly System.IO.Stream? _pcmDump = Environment.GetEnvironmentVariable("QP_PCM_DUMP") is { } dumpPath
+        ? System.IO.File.Create(dumpPath)
+        : null;
 
     private void OnFrame(byte[] bgra)
     {
@@ -156,6 +159,7 @@ public sealed class RecordingSession : IDisposable
                             var n = _audio.ReadPcm16(buf, toRead);
                             if (n > 0)
                             {
+                                _pcmDump?.Write(buf, 0, n);
                                 var time = _audioBytesWritten * 10_000_000L / (RecordingAudio.TargetRate * 4L);
                                 var dur = n * 10_000_000L / (RecordingAudio.TargetRate * 4L);
                                 _writer.WriteAudioPcm16(buf, n, time, dur);
@@ -248,6 +252,13 @@ public sealed class RecordingSession : IDisposable
         _writer.FinalizeFile();
         _writer.Dispose();
         _audio?.Dispose();
+        try
+        {
+            _pcmDump?.Dispose();
+        }
+        catch
+        {
+        }
         _logger.Information("Audio written: {Samples} samples = {Sec:0.000}s (elapsed {Elapsed:0.000}s)",
             _audioBytesWritten / 4, _audioBytesWritten / 4.0 / RecordingAudio.TargetRate, Elapsed.TotalSeconds);
 
