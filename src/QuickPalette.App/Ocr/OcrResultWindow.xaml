@@ -102,6 +102,7 @@
                 <TextBlock x:Name="StatusText"
                            Foreground="{DynamicResource TextSecondary}"
                            FontSize="12"
+                           TextTrimming="CharacterEllipsis"
                            VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <RadioButton x:Name="TabText" Style="{StaticResource TabChip}" Content="文本"
@@ -130,7 +131,7 @@
             </Border>
 
             <!-- 表格视图 -->
-            <Border x:Name="ViewTable" Background="{DynamicResource InputBrush}" CornerRadius="8" Margin="16,10,16,0" Height="300" Visibility="Collapsed">
+            <Border x:Name="ViewTable" Background="{DynamicResource InputBrush}" CornerRadius="10" Margin="16,10,16,0" Height="300" Visibility="Collapsed" Padding="6">
                 <DataGrid x:Name="TableGrid"
                           AutoGenerateColumns="True"
                           IsReadOnly="True"
@@ -138,13 +139,65 @@
                           Background="Transparent"
                           BorderThickness="0"
                           HeadersVisibility="Column"
-                          GridLinesVisibility="All"
-                          FontSize="13">
-                    <DataGrid.RowStyle>
+                          GridLinesVisibility="None"
+                          RowHeight="38"
+                          FontSize="13.5"
+                          ColumnWidth="*"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto">
+                    <DataGrid.Resources>
+                        <!-- 行：悬停高亮 -->
                         <Style TargetType="DataGridRow">
                             <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#224C8DFF"/>
+                                </Trigger>
+                            </Style.Triggers>
                         </Style>
-                    </DataGrid.RowStyle>
+                        <!-- 单元格 -->
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="DataGridCell">
+                                        <Border x:Name="CellBorder" Padding="12,0" Background="{TemplateBinding Background}">
+                                            <ContentPresenter VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="CellBorder" Property="Background" Value="#334C8DFF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#334C8DFF"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="Padding" Value="12,11"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="DataGridColumnHeader">
+                                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
                 </DataGrid>
             </Border>
 

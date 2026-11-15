@@ -1,47 +1,98 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using QuickPalette.App.Ocr;
 using QuickPalette.Ocr;
 
-class FormatSmoke
+class TableUiSmoke
 {
+    [STAThread]
     static void Main()
     {
-        // ① 表格：3 行 × 3 列对齐几何
-        var tableBoxes = new List<OcrLineBox>
-        {
-            new("姓名", 50, 10, 60, 20),  new("年龄", 250, 10, 60, 20),  new("城市", 450, 10, 60, 20),
-            new("张三", 50, 50, 60, 20),  new("28", 250, 50, 30, 20),    new("北京", 450, 50, 60, 20),
-            new("李四", 50, 90, 60, 20),  new("31", 250, 90, 30, 20),    new("上海", 450, 90, 60, 20),
-        };
-        var t = OcrFormatter.DetectTable(tableBoxes);
-        Console.WriteLine($"[表格] IsTable={t.IsTable} {t.RowCount}x{t.ColumnCount}");
-        Console.WriteLine(t.ToMarkdown());
-        Console.WriteLine("TSV 首行: " + t.ToTsv().Split('\n')[0].Replace("\t", " ⇥ "));
-        Console.WriteLine(t.IsTable && t.ColumnCount == 3 ? "[✓] 表格通过" : "[✗] 表格失败");
+        var app = new Application();
 
-        // ② 代码：缩进层级 + 符号
-        var codeBoxes = new List<OcrLineBox>
-        {
-            new("def add(a, b):", 50, 10, 120, 20),
-            new("if a > 0:", 90, 50, 90, 20),
-            new("return a + b;", 130, 90, 110, 20),
-            new("print(add(1, 2));", 50, 130, 150, 20),
-        };
-        var isCode = OcrFormatter.LooksLikeCode(codeBoxes);
-        var mdCode = OcrFormatter.ToMarkdown(codeBoxes);
-        Console.WriteLine($"[代码] LooksLikeCode={isCode}");
-        Console.WriteLine(mdCode);
-        Console.WriteLine(isCode && mdCode.Contains("```") && mdCode.Contains("    if") ? "[✓] 代码通过（缩进保留）" : "[✗] 代码失败");
+        // 模拟主题资源（真实 App 在 App.xaml 主题字典里）
+        var dict = new ResourceDictionary();
+        dict["BgWindow"] = new SolidColorBrush(Color.FromRgb(0x2B, 0x34, 0x46));
+        dict["BgWindowBorder"] = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+        dict["BgTitle"] = new SolidColorBrush(Color.FromRgb(0x22, 0x2A, 0x3A));
+        dict["TextPrimary"] = new SolidColorBrush(Colors.White);
+        dict["TextSecondary"] = new SolidColorBrush(Color.FromRgb(0xAA, 0xB6, 0xCC));
+        dict["InputBrush"] = new SolidColorBrush(Color.FromArgb(0x1A, 0xFF, 0xFF, 0xFF));
+        dict["InputBorderBrush"] = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
+        dict["HoverBrush"] = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+        dict["AccentBrush"] = new SolidColorBrush(Color.FromRgb(0x4C, 0x8D, 0xFF));
+        dict["AccentHoverBrush"] = new SolidColorBrush(Color.FromRgb(0x3B, 0x7B, 0xE8));
+        dict["CloseButtonBrush"] = new SolidColorBrush(Colors.White);
+        app.Resources.MergedDictionaries.Add(dict);
 
-        // ③ 列表
-        var listBoxes = new List<OcrLineBox>
+        app.Startup += (_, _) =>
         {
-            new("- 苹果", 50, 10, 60, 20),
-            new("- 香蕉", 50, 50, 60, 20),
-            new("普通段落文字在这里。", 50, 90, 160, 20),
+            try
+            {
+                var rows = new List<string[]>
+                {
+                    new[] { "方案", "语言", "解码能力", "体积", "结论" },
+                    new[] { "ZXing.Net", "C# 原生", "QR/条码全家桶，容错（模糊/倾斜/反色）良好", "~500KB", "选" },
+                    new[] { "ZBar (P/Invoke)", "C", "快", "原生 dll 分发", "绑定麻烦" },
+                    new[] { "QRCoder", "C#", "只生成", "-", "不适用" },
+                    new[] { "OpenCV QRCodeDetector", "C++/绑定", "强", "+30MB", "过重" },
+                };
+                var lines = new List<string>();
+                var boxes = new List<OcrLineBox>();
+                double y = 10;
+                foreach (var r in rows)
+                {
+                    double x = 50;
+                    foreach (var cell in r)
+                    {
+                        boxes.Add(new OcrLineBox(cell, x, y, Math.Max(30, cell.Length * 12), 20));
+                        x += 190;
+                    }
+
+                    lines.Add(string.Join(" ", r));
+                    y += 40;
+                }
+
+                var result = new OcrTextResult(string.Join(Environment.NewLine, lines), lines, boxes, "高精度引擎", TimeSpan.FromMilliseconds(300));
+                var win = new OcrResultWindow();
+                win.ShowResult(result);
+                win.Show();
+
+                // 反射勾选“表格”页
+                var tab = (RadioButton)typeof(OcrResultWindow)
+                    .GetField("TabTable", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .GetValue(win)!;
+                tab.IsChecked = true;
+
+                var t = new Thread(() =>
+                {
+                    Thread.Sleep(1000);
+                    app.Dispatcher.Invoke(() =>
+                    {
+                        var rtb = new RenderTargetBitmap((int)win.ActualWidth, (int)win.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+                        rtb.Render(win);
+                        var path = Path.Combine(Path.GetTempPath(), "qp_table_ui2.png");
+                        using var fs = File.Create(path);
+                        new PngBitmapEncoder { Frames = { BitmapFrame.Create(rtb) } }.Save(fs);
+                        Console.WriteLine("[✓] 表格页渲染: " + path);
+                        app.Shutdown();
+                    });
+                });
+                t.Start();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[✗] " + ex);
+                app.Shutdown();
+            }
         };
-        var mdList = OcrFormatter.ToMarkdown(listBoxes);
-        Console.WriteLine("[列表] " + mdList.Replace("\n", " ⏎ "));
-        Console.WriteLine(mdList.Contains("- 苹果") && mdList.Contains("普通段落") ? "[✓] 列表通过" : "[✗] 列表失败");
+        app.Run();
     }
 }

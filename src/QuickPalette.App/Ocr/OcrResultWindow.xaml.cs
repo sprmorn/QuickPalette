@@ -2,6 +2,7 @@ namespace QuickPalette.App.Ocr;
 
 using System.Data;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using QuickPalette.App.Screenshot;
 using QuickPalette.Ocr;
@@ -20,6 +21,23 @@ public partial class OcrResultWindow : Window
     {
         InitializeComponent();
         TitleIconHost.Content = ToolbarIcons.Create("ocr", 18);
+
+        // 自动列：文字用主题色 + 超宽省略（默认黑字在深色面板上很丑）
+        TableGrid.AutoGeneratingColumn += (_, e) =>
+        {
+            if (e.Column is DataGridTextColumn text)
+            {
+                text.ElementStyle = new Style(typeof(TextBlock))
+                {
+                    Setters =
+                    {
+                        new Setter(TextBlock.ForegroundProperty, (System.Windows.Media.Brush)FindResource("TextPrimary")),
+                        new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis),
+                        new Setter(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center),
+                    },
+                };
+            }
+        };
     }
 
     /// <summary>填充识别结果（识别完成后由服务层调用）</summary>
@@ -44,16 +62,20 @@ public partial class OcrResultWindow : Window
         ResultBox.Text = _plainText;
         MdBox.Text = _markdown;
 
-        // 表格视图
+        // 表格视图：首行作列头（识别表格首行通常是表头），余下为数据
         if (table is { IsTable: true })
         {
+            var rows = table.Rows;
             var dt = new DataTable();
             for (var c = 0; c < table.ColumnCount; c++)
             {
-                dt.Columns.Add($"列 {c + 1}");
+                var header = rows.Count > 0 && rows[0].Count > c && !string.IsNullOrWhiteSpace(rows[0][c])
+                    ? rows[0][c]
+                    : $"列 {c + 1}";
+                dt.Columns.Add(header);
             }
 
-            foreach (var row in table.Rows)
+            foreach (var row in rows.Skip(1))
             {
                 var dr = dt.NewRow();
                 for (var c = 0; c < table.ColumnCount; c++)
@@ -74,13 +96,13 @@ public partial class OcrResultWindow : Window
         }
 
         var structureNote = table is { IsTable: true }
-            ? $"检测到表格（{table.RowCount}×{table.ColumnCount}）"
+            ? $"表格 {table.RowCount}×{table.ColumnCount}"
             : OcrFormatter.LooksLikeCode(result.Boxes ?? Array.Empty<OcrLineBox>())
-                ? "检测到代码（保留缩进）"
+                ? "代码（保留缩进）"
                 : "普通文本";
         StatusText.Text = result.IsEmpty
             ? $"引擎：{result.EngineName}"
-            : $"引擎：{result.EngineName}　耗时：{result.Elapsed.TotalSeconds:0.0}s　{structureNote}　识别结果可编辑修正";
+            : $"{result.EngineName} · {result.Elapsed.TotalSeconds:0.0}s · {structureNote} · 结果可编辑";
 
         Show();
         Activate();
