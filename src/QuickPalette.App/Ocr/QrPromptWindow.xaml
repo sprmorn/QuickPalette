@@ -1,6 +1,7 @@
 <Window x:Class="QuickPalette.App.Ocr.QrPromptWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:QuickPalette.App.Ocr"
         Title="扫码"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -10,6 +11,10 @@
         ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
         ShowActivated="False">
+    <Window.Resources>
+        <!-- XAML 内声明：模板加载时 StaticResource 必能找到（代码注入会迟于模板解析） -->
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+    </Window.Resources>
     <Border Background="#F52B3446"
             CornerRadius="10"
             BorderBrush="#55FFFFFF"

@@ -3,8 +3,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0-windows10.0.22621.0</TargetFramework>
     <Nullable>disable</Nullable>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\QuickPalette.Ocr\QuickPalette.Ocr.csproj" />
+    <ProjectReference Include="..\..\src\QuickPalette.App\QuickPalette.App.csproj" />
   </ItemGroup>
 </Project>

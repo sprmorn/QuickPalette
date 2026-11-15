@@ -26,9 +26,6 @@ public partial class QrPromptWindow : Window
         InitializeComponent();
         TitleIconHost.Content = ToolbarIcons.Create("qr", 16);
 
-        // WPF 无内置 BoolToVisibility 的 StaticResource —— 用代码注册转换器
-        Resources["BoolToVisibility"] = new BoolToVisibilityConverter();
-
         _autoClose = new System.Windows.Threading.DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(30),
