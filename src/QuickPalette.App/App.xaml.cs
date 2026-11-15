@@ -41,6 +41,54 @@ public partial class App : System.Windows.Application
     private UsbDriveMonitor? _usbMonitor;
     private LinkAssistantService? _linkAssistant;
     private Recorder.RecordingService? _recordingService;
+    private ScreenshotOcrService? _ocrService;
+
+    /// <summary>选区文字识别：先弹结果窗（识别中），后台双引擎识别后回填</summary>
+    private async Task RunOcrAsync(System.Drawing.Rectangle region)
+    {
+        if (_ocrService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var window = new Ocr.OcrResultWindow();
+            window.ShowRecognizing();
+            var result = await _ocrService.RecognizeAsync(region);
+            await Dispatcher.InvokeAsync(() => window.ShowResult(result.Text, result.EngineName, result.Elapsed.TotalSeconds, result.IsEmpty));
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Run OCR failed");
+        }
+    }
+
+    /// <summary>选区扫码：识别到弹卡片；未识别到给轻提示</summary>
+    private void RunQr(System.Drawing.Rectangle region)
+    {
+        if (_ocrService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var codes = _ocrService.DecodeQr(region);
+            if (codes.Count == 0)
+            {
+                MessageBox.Show("未在选区中发现二维码。", "扫码", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var window = new Ocr.QrPromptWindow();
+            window.ShowCodes(codes);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Run QR failed");
+        }
+    }
     private ForegroundWindowTracker? _foregroundTracker;
     private JsonRepository? _repository;
     private LauncherManager? _launcherManager;
@@ -197,6 +245,11 @@ public partial class App : System.Windows.Application
             // 12b-2. 录屏编排（选区 → WGC 录制 → 细条条 → 编辑窗）
             _recordingService = new Recorder.RecordingService(_logger, settings);
             _screenshotService.RecordingRequested += region => _recordingService.Start(region);
+
+            // 12b-3. 截图 OCR / 扫码（选区识别）
+            _ocrService = new ScreenshotOcrService(_logger);
+            _screenshotService.OcrRequested += region => _ = RunOcrAsync(region);
+            _screenshotService.QrRequested += region => RunQr(region);
 
             // 测试/运维入口：--record-test 直接录制一块区域（验证录制 UI/落盘）
             var argv = Environment.GetCommandLineArgs();

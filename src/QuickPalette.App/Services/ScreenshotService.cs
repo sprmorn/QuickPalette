@@ -103,6 +103,8 @@ public sealed class ScreenshotService : IDisposable
             overlay.Pinned += OnPinned;
             overlay.LongCaptureRequested += rect => OnLongCaptureRequested(overlay, rect);
             overlay.RecordRequested += rect => OnRecordRequested(overlay, rect);
+            overlay.OcrRequested += rect => OnOcrRequested(overlay, rect);
+            overlay.QrRequested += rect => OnQrRequested(overlay, rect);
             overlay.Exited += HideAll;
             _overlays.Add(overlay);
         }
@@ -226,6 +228,42 @@ public sealed class ScreenshotService : IDisposable
 
     /// <summary>请求录屏（携带选区屏幕像素矩形）；App 层接管录制编排</summary>
     public event Action<System.Drawing.Rectangle>? RecordingRequested;
+
+    /// <summary>请求文字识别（携带选区屏幕像素矩形）；App 层接管</summary>
+    public event Action<System.Drawing.Rectangle>? OcrRequested;
+
+    /// <summary>请求识别二维码（携带选区屏幕像素矩形）；App 层接管</summary>
+    public event Action<System.Drawing.Rectangle>? QrRequested;
+
+    /// <summary>进入文字识别：隐藏覆盖层，选区交给识别编排</summary>
+    private void OnOcrRequested(OverlayWindow source, System.Drawing.Rectangle region)
+    {
+        try
+        {
+            HideAll();
+            _logger.Information("OCR requested: {Region}", region);
+            OcrRequested?.Invoke(region);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "OCR failed");
+        }
+    }
+
+    /// <summary>进入扫码：隐藏覆盖层，选区交给识别编排</summary>
+    private void OnQrRequested(OverlayWindow source, System.Drawing.Rectangle region)
+    {
+        try
+        {
+            HideAll();
+            _logger.Information("QR requested: {Region}", region);
+            QrRequested?.Invoke(region);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "QR failed");
+        }
+    }
 
     /// <summary>进入录屏：隐藏覆盖层，选区交给录制编排</summary>
     private void OnRecordRequested(OverlayWindow source, System.Drawing.Rectangle region)

@@ -21,6 +21,8 @@ public partial class ScreenshotToolbar : UserControl
     public event Action? PinRequested;
     public event Action? LongCaptureRequested;
     public event Action? RecordRequested;
+    public event Action? OcrRequested;
+    public event Action? QrRequested;
     public event Action? ExitRequested;
     public event Action<RgbaColor>? ColorSelected;
 
@@ -60,6 +62,8 @@ public partial class ScreenshotToolbar : UserControl
         RedoButton.Content = ToolbarIcons.Create("redo");
         LongButton.Content = ToolbarIcons.Create("long");
         RecordButton.Content = ToolbarIcons.Create("rec-camera");
+        OcrButton.Content = ToolbarIcons.Create("ocr");
+        QrButton.Content = ToolbarIcons.Create("qr");
         CopyButton.Content = ToolbarIcons.Create("copy");
         SaveButton.Content = ToolbarIcons.Create("save");
         PinButton.Content = ToolbarIcons.Create("pin");
@@ -266,6 +270,8 @@ public partial class ScreenshotToolbar : UserControl
     private void Pin_Click(object sender, RoutedEventArgs e) => PinRequested?.Invoke();
     private void LongCapture_Click(object sender, RoutedEventArgs e) => LongCaptureRequested?.Invoke();
     private void Record_Click(object sender, RoutedEventArgs e) => RecordRequested?.Invoke();
+    private void Ocr_Click(object sender, RoutedEventArgs e) => OcrRequested?.Invoke();
+    private void Qr_Click(object sender, RoutedEventArgs e) => QrRequested?.Invoke();
     private void Exit_Click(object sender, RoutedEventArgs e) => ExitRequested?.Invoke();
 
     /// <summary>色板项（颜色 + 画刷）</summary>

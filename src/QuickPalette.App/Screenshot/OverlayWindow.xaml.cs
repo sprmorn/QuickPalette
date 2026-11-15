@@ -104,6 +104,12 @@ public partial class OverlayWindow : Window
     /// <summary>请求录屏（携带选区屏幕像素矩形）；主覆盖层由服务隐藏，进入录制</summary>
     public event Action<System.Drawing.Rectangle>? RecordRequested;
 
+    /// <summary>请求文字识别（携带选区屏幕像素矩形）</summary>
+    public event Action<System.Drawing.Rectangle>? OcrRequested;
+
+    /// <summary>请求识别二维码（携带选区屏幕像素矩形）</summary>
+    public event Action<System.Drawing.Rectangle>? QrRequested;
+
     public event Action? Exited;
 
     public OverlayWindow(ILogger logger)
@@ -365,6 +371,20 @@ public partial class OverlayWindow : Window
             if (_hasSelection)
             {
                 RecordRequested?.Invoke(GetSelectionPixelBounds());
+            }
+        };
+        Toolbar.OcrRequested += () =>
+        {
+            if (_hasSelection)
+            {
+                OcrRequested?.Invoke(GetSelectionPixelBounds());
+            }
+        };
+        Toolbar.QrRequested += () =>
+        {
+            if (_hasSelection)
+            {
+                QrRequested?.Invoke(GetSelectionPixelBounds());
             }
         };
         Toolbar.ExitRequested += Exit;
