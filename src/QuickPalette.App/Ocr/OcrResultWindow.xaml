@@ -79,7 +79,8 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <ContentControl x:Name="TitleIconHost" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <ContentControl x:Name="TitleIconHost" Margin="0,0,8,0" VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextPrimary}"/>
                         <TextBlock Text="文字识别结果"
                                    Foreground="{DynamicResource TextPrimary}"
                                    FontSize="17"

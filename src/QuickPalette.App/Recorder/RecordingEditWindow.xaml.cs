@@ -40,8 +40,8 @@ public partial class RecordingEditWindow : Window
         File.Copy(sourcePath, _previewPath, overwrite: true);
 
         TitleIconHost.Content = ToolbarIcons.Create("rec-camera", 18);
-        SpeedIconHost.Content = ToolbarIcons.Create("rec-speed", 16, Brushes.Gray);
-        CropIconHost.Content = ToolbarIcons.Create("rec-crop", 15, Brushes.Gray);
+        SpeedIconHost.Content = ToolbarIcons.Create("rec-speed", 16);
+        CropIconHost.Content = ToolbarIcons.Create("rec-crop", 15);
 
         Preview.Source = new Uri(_previewPath);
         Preview.MediaOpened += (_, _) =>

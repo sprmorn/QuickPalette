@@ -57,7 +57,8 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <ContentControl x:Name="TitleIconHost" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <ContentControl x:Name="TitleIconHost" Margin="0,0,8,0" VerticalAlignment="Center"
+                                        Foreground="{DynamicResource TextPrimary}"/>
                         <TextBlock Text="录屏 · 编辑"
                                    Foreground="{DynamicResource TextPrimary}"
                                    FontSize="17"
@@ -90,7 +91,8 @@
                 <TextBlock x:Name="TimeText" Grid.Column="1" Text="00:00 / 00:00"
                            Foreground="{DynamicResource TextSecondary}" FontSize="12"
                            VerticalAlignment="Center" Margin="12,0"/>
-                <ContentControl x:Name="SpeedIconHost" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <ContentControl x:Name="SpeedIconHost" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,6,0"
+                                Foreground="{DynamicResource TextSecondary}"/>
                 <ComboBox x:Name="SpeedBox" Grid.Column="3" Width="92" VerticalAlignment="Center"
                           SelectionChanged="Speed_Changed">
                     <ComboBoxItem Content="0.5×" Tag="0.5"/>
@@ -103,7 +105,8 @@
             <!-- 裁剪 -->
             <StackPanel Margin="16,12,16,0">
                 <StackPanel Orientation="Horizontal">
-                    <ContentControl x:Name="CropIconHost" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <ContentControl x:Name="CropIconHost" Margin="0,0,8,0" VerticalAlignment="Center"
+                                    Foreground="{DynamicResource TextSecondary}"/>
                     <TextBlock x:Name="TrimText" Text="裁剪：0.0s – 全部"
                                Foreground="{DynamicResource TextSecondary}" FontSize="12"
                                VerticalAlignment="Center"/>

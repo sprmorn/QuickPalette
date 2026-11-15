@@ -20,7 +20,7 @@ public partial class OcrResultWindow : Window
     public OcrResultWindow()
     {
         InitializeComponent();
-        TitleIconHost.Content = ToolbarIcons.Create("ocr", 18);
+        TitleIconHost.Content = ToolbarIcons.Create("ocr", 18); // Foreground 绑定 XAML 主题资源，深浅色自适应
 
         // 自动列：文字用主题色 + 超宽省略（默认黑字在深色面板上很丑）
         TableGrid.AutoGeneratingColumn += (_, e) =>

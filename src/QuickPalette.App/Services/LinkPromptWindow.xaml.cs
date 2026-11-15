@@ -33,8 +33,8 @@ public partial class LinkPromptWindow : Window
         _onOpen = onOpen;
 
         CategoryIconHost.Content = ToolbarIcons.Create(suggestion.IconKey, 32, Brushes.White);
-        OpenIconHost.Content = ToolbarIcons.Create("link-open", 18);
-        IgnoreIconHost.Content = ToolbarIcons.Create("exit", 18);
+        OpenIconHost.Content = ToolbarIcons.Create("link-open", 18, Brushes.White);
+        IgnoreIconHost.Content = ToolbarIcons.Create("exit", 18, Brushes.White);
 
         AppText.Text = suggestion.TargetApp;
         UrlText.Text = Truncate(suggestion.DisplayText, 42);

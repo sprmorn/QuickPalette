@@ -23,7 +23,8 @@
         <StackPanel Width="360">
             <!-- 标题 -->
             <StackPanel Orientation="Horizontal" Margin="2,2,2,10">
-                <ContentControl x:Name="TitleIconHost" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <ContentControl x:Name="TitleIconHost" Margin="0,0,8,0" VerticalAlignment="Center"
+                                Foreground="White"/>
                 <TextBlock Text="二维码"
                            Foreground="#AAB6CC"
                            FontSize="12"
