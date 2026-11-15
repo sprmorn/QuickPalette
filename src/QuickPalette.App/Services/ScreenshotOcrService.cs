@@ -51,7 +51,12 @@ public sealed class ScreenshotOcrService
     public async Task<OcrTextResult> RecognizeAsync(Rectangle region, string engineMode = "auto", CancellationToken ct = default)
     {
         var (bgra, w, h) = CaptureRegion(region);
+        return await RecognizeAsync(bgra, w, h, engineMode, ct);
+    }
 
+    /// <summary>识别已捕获图像（先捕获后弹窗，避免把自己弹出的面板截进识别区）</summary>
+    public async Task<OcrTextResult> RecognizeAsync(byte[] bgra, int w, int h, string engineMode = "auto", CancellationToken ct = default)
+    {
         // 小字放大 2x（Text-Grab 经验：提升小字号识别率）
         if (w < 480 && h < 480)
         {

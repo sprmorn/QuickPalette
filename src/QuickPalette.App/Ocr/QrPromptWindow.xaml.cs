@@ -59,11 +59,13 @@ public partial class QrPromptWindow : Window
 
         CodeList.ItemsSource = items;
 
-        // 右上角（与链接助手一致）
-        var area = SystemParameters.WorkArea;
-        Left = area.Right - Width - 18;
-        Top = 18;
+        // 先 Show（SizeToContent 布局后才有实际尺寸），再定位到右上角——
+        // Show 前 Width=NaN，直接算 Left 会让布局抛异常（实测：识别到码但卡片静默失败）
         Show();
+        var area = SystemParameters.WorkArea;
+        var w = double.IsNaN(Width) || Width <= 0 ? ActualWidth : Width;
+        Left = Math.Max(0, area.Right - w - 18);
+        Top = 18;
         Activate();
     }
 

@@ -43,7 +43,8 @@ public partial class App : System.Windows.Application
     private Recorder.RecordingService? _recordingService;
     private ScreenshotOcrService? _ocrService;
 
-    /// <summary>选区文字识别：先弹结果窗（识别中），后台双引擎识别后回填</summary>
+    /// <summary>选区文字识别：先捕获图像（在弹窗之前！否则会把面板截进识别区），
+    /// 再弹结果窗，后台双引擎识别后回填</summary>
     private async Task RunOcrAsync(System.Drawing.Rectangle region)
     {
         if (_ocrService == null)
@@ -53,14 +54,16 @@ public partial class App : System.Windows.Application
 
         try
         {
+            var (bgra, w, h) = ScreenshotOcrService.CaptureRegion(region);
             var window = new Ocr.OcrResultWindow();
             window.ShowRecognizing();
-            var result = await _ocrService.RecognizeAsync(region);
+            var result = await _ocrService.RecognizeAsync(bgra, w, h);
             await Dispatcher.InvokeAsync(() => window.ShowResult(result.Text, result.EngineName, result.Elapsed.TotalSeconds, result.IsEmpty));
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Run OCR failed");
+            MessageBox.Show("文字识别失败，请查看日志。", "OCR", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -87,6 +90,7 @@ public partial class App : System.Windows.Application
         catch (Exception ex)
         {
             _logger.Error(ex, "Run QR failed");
+            MessageBox.Show("扫码失败，请查看日志。", "扫码", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
     private ForegroundWindowTracker? _foregroundTracker;
