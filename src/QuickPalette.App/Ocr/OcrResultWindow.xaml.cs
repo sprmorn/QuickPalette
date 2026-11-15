@@ -1,12 +1,21 @@
 namespace QuickPalette.App.Ocr;
 
+using System.Data;
 using System.Windows;
 using System.Windows.Input;
 using QuickPalette.App.Screenshot;
+using QuickPalette.Ocr;
 
-/// <summary>OCR 结果面板：可修正文本 + 复制 / 复制并关闭 / 搜索此文本</summary>
+/// <summary>
+/// OCR 结果面板：文本 / Markdown / 表格 三视图。
+/// 表格=几何聚类还原（可复制 TSV 直贴 Excel）；Markdown=表格/代码块/列表自动转换。
+/// </summary>
 public partial class OcrResultWindow : Window
 {
+    private string _plainText = string.Empty;
+    private string _markdown = string.Empty;
+    private string _tsv = string.Empty;
+
     public OcrResultWindow()
     {
         InitializeComponent();
@@ -14,14 +23,65 @@ public partial class OcrResultWindow : Window
     }
 
     /// <summary>填充识别结果（识别完成后由服务层调用）</summary>
-    public void ShowResult(string text, string engineName, double seconds, bool isEmpty)
+    public void ShowResult(OcrTextResult result)
     {
-        ResultBox.Text = isEmpty
-            ? "未识别到文字。可尝试：框选更大范围、或换高精度引擎。"
-            : text;
-        StatusText.Text = isEmpty
-            ? $"引擎：{engineName}"
-            : $"引擎：{engineName}　耗时：{seconds:0.0}s　识别结果可直接编辑修正";
+        _plainText = result.IsEmpty ? "未识别到文字。可尝试：框选更大范围、或换高精度引擎。" : result.Text;
+
+        // 结构化
+        OcrTable? table = null;
+        if (!result.IsEmpty && result.Boxes.Count > 0)
+        {
+            table = OcrFormatter.DetectTable(result.Boxes);
+            _markdown = OcrFormatter.ToMarkdown(result.Boxes, table);
+            _tsv = table.IsTable ? table.ToTsv() : result.Text;
+        }
+        else
+        {
+            _markdown = _plainText;
+            _tsv = _plainText;
+        }
+
+        ResultBox.Text = _plainText;
+        MdBox.Text = _markdown;
+
+        // 表格视图
+        if (table is { IsTable: true })
+        {
+            var dt = new DataTable();
+            for (var c = 0; c < table.ColumnCount; c++)
+            {
+                dt.Columns.Add($"列 {c + 1}");
+            }
+
+            foreach (var row in table.Rows)
+            {
+                var dr = dt.NewRow();
+                for (var c = 0; c < table.ColumnCount; c++)
+                {
+                    dr[c] = c < row.Count ? row[c] : string.Empty;
+                }
+
+                dt.Rows.Add(dr);
+            }
+
+            TableGrid.ItemsSource = dt.DefaultView;
+            TabTable.IsEnabled = true;
+        }
+        else
+        {
+            TableGrid.ItemsSource = null;
+            TabTable.IsEnabled = false;
+        }
+
+        var structureNote = table is { IsTable: true }
+            ? $"检测到表格（{table.RowCount}×{table.ColumnCount}）"
+            : OcrFormatter.LooksLikeCode(result.Boxes ?? Array.Empty<OcrLineBox>())
+                ? "检测到代码（保留缩进）"
+                : "普通文本";
+        StatusText.Text = result.IsEmpty
+            ? $"引擎：{result.EngineName}"
+            : $"引擎：{result.EngineName}　耗时：{result.Elapsed.TotalSeconds:0.0}s　{structureNote}　识别结果可编辑修正";
+
         Show();
         Activate();
     }
@@ -32,6 +92,18 @@ public partial class OcrResultWindow : Window
         StatusText.Text = "正在识别…";
         Show();
         Activate();
+    }
+
+    private void Tab_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ViewText == null)
+        {
+            return;
+        }
+
+        ViewText.Visibility = TabText.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ViewMd.Visibility = TabMd.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ViewTable.Visibility = TabTable.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -51,29 +123,29 @@ public partial class OcrResultWindow : Window
         {
             Close();
         }
-        else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
-        {
-            CopyResult();
-        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void CopyAll_Click(object sender, RoutedEventArgs e) => CopyResult();
+    private void CopyText_Click(object sender, RoutedEventArgs e) => Copy(ResultBox.Text);
+
+    private void CopyMd_Click(object sender, RoutedEventArgs e) => Copy(_markdown);
+
+    private void CopyTsv_Click(object sender, RoutedEventArgs e) => Copy(_tsv);
 
     private void CopyClose_Click(object sender, RoutedEventArgs e)
     {
-        CopyResult();
+        Copy(ResultBox.Text);
         Close();
     }
 
-    private void CopyResult()
+    private void Copy(string content)
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(ResultBox.Text))
+            if (!string.IsNullOrWhiteSpace(content))
             {
-                Clipboard.SetText(ResultBox.Text);
+                Clipboard.SetText(content);
             }
         }
         catch

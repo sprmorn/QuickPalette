@@ -68,7 +68,7 @@ public sealed class PaddleOcrEngine : IOcrEngine
         var sw = System.Diagnostics.Stopwatch.StartNew();
         if (!IsAvailable)
         {
-            return new OcrTextResult(string.Empty, Array.Empty<string>(), Name, sw.Elapsed);
+            return OcrTextResult.Empty(Name, sw.Elapsed);
         }
 
         using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
@@ -77,11 +77,33 @@ public sealed class PaddleOcrEngine : IOcrEngine
         var result = await _ocr!.DetectAsync(bitmap, RapidOcrNet.RapidOcrOptions.Default, null, ct)
             .ConfigureAwait(false);
 
-        var lines = result.TextBlocks?
-                .Select(b => b.Text)
-                .Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
-            ?? new List<string>();
+        var lines = new List<string>();
+        var boxes = new List<OcrLineBox>();
+        if (result.TextBlocks != null)
+        {
+            foreach (var b in result.TextBlocks)
+            {
+                if (string.IsNullOrWhiteSpace(b.Text))
+                {
+                    continue;
+                }
+
+                lines.Add(b.Text);
+
+                // 行几何 = BoxPoints（四角）并集
+                var pts = b.BoxPoints;
+                if (pts != null && pts.Length >= 4)
+                {
+                    var minX = pts.Min(p => (double)p.X);
+                    var minY = pts.Min(p => (double)p.Y);
+                    var maxX = pts.Max(p => (double)p.X);
+                    var maxY = pts.Max(p => (double)p.Y);
+                    boxes.Add(new OcrLineBox(b.Text, minX, minY, maxX - minX, maxY - minY));
+                }
+            }
+        }
+
         var text = string.Join(Environment.NewLine, lines);
-        return new OcrTextResult(text, lines, Name, sw.Elapsed);
+        return new OcrTextResult(text, lines, boxes, Name, sw.Elapsed);
     }
 }

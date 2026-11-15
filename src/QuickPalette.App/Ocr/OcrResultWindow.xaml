@@ -37,6 +37,27 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="TabChip" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Padding="14,6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="{DynamicResource BgWindow}"
@@ -48,7 +69,7 @@
             <DropShadowEffect BlurRadius="20" Opacity="0.5" ShadowDepth="0"/>
         </Border.Effect>
 
-        <StackPanel Width="560">
+        <StackPanel Width="620">
             <!-- 标题栏 -->
             <Border Background="{DynamicResource BgTitle}" CornerRadius="12,12,0,0" Padding="16,12"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
@@ -72,34 +93,68 @@
                 </Grid>
             </Border>
 
-            <!-- 识别中 -->
-            <TextBlock x:Name="StatusText"
-                       Margin="18,14,18,0"
-                       Foreground="{DynamicResource TextSecondary}"
-                       FontSize="12"/>
+            <!-- 状态 + 视图切换 -->
+            <Grid Margin="16,12,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText"
+                           Foreground="{DynamicResource TextSecondary}"
+                           FontSize="12"
+                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <RadioButton x:Name="TabText" Style="{StaticResource TabChip}" Content="文本"
+                                 Foreground="White" FontSize="12.5" IsChecked="True" Checked="Tab_Changed"/>
+                    <RadioButton x:Name="TabMd" Style="{StaticResource TabChip}" Content="Markdown"
+                                 Foreground="White" FontSize="12.5" Checked="Tab_Changed"/>
+                    <RadioButton x:Name="TabTable" Style="{StaticResource TabChip}" Content="表格"
+                                 Foreground="White" FontSize="12.5" Checked="Tab_Changed"/>
+                </StackPanel>
+            </Grid>
 
-            <!-- 结果文本（可修正） -->
-            <Border Background="{DynamicResource InputBrush}"
-                    CornerRadius="8"
-                    Margin="16,10,16,0"
-                    Height="300">
+            <!-- 文本视图 -->
+            <Border x:Name="ViewText" Background="{DynamicResource InputBrush}" CornerRadius="8" Margin="16,10,16,0" Height="300">
                 <TextBox x:Name="ResultBox"
-                         AcceptsReturn="True"
-                         AcceptsTab="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         Foreground="{DynamicResource TextPrimary}"
-                         FontSize="14"
-                         Padding="10"/>
+                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0"
+                         Foreground="{DynamicResource TextPrimary}" FontSize="14" Padding="10"/>
+            </Border>
+
+            <!-- Markdown 视图 -->
+            <Border x:Name="ViewMd" Background="{DynamicResource InputBrush}" CornerRadius="8" Margin="16,10,16,0" Height="300" Visibility="Collapsed">
+                <TextBox x:Name="MdBox"
+                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" Background="Transparent" BorderThickness="0"
+                         Foreground="{DynamicResource TextPrimary}" FontFamily="Consolas" FontSize="13" Padding="10"/>
+            </Border>
+
+            <!-- 表格视图 -->
+            <Border x:Name="ViewTable" Background="{DynamicResource InputBrush}" CornerRadius="8" Margin="16,10,16,0" Height="300" Visibility="Collapsed">
+                <DataGrid x:Name="TableGrid"
+                          AutoGenerateColumns="True"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="All"
+                          FontSize="13">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
             </Border>
 
             <!-- 操作 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16,14,16,18">
-                <Button Content="搜索此文本" Style="{StaticResource SecondaryButtonStyle}" Width="108" Click="Search_Click"/>
-                <Button Content="复制全部" Style="{StaticResource SecondaryButtonStyle}" Width="92" Margin="10,0,0,0" Click="CopyAll_Click"/>
-                <Button Content="复制并关闭" Style="{StaticResource PrimaryButtonStyle}" Width="108" Margin="10,0,0,0" Click="CopyClose_Click"/>
+                <Button Content="搜索此文本" Style="{StaticResource SecondaryButtonStyle}" Width="102" Click="Search_Click"/>
+                <Button Content="复制纯文本" Style="{StaticResource SecondaryButtonStyle}" Width="102" Margin="8,0,0,0" Click="CopyText_Click"/>
+                <Button Content="复制 Markdown" Style="{StaticResource SecondaryButtonStyle}" Width="118" Margin="8,0,0,0" Click="CopyMd_Click"/>
+                <Button Content="复制到 Excel" Style="{StaticResource SecondaryButtonStyle}" Width="106" Margin="8,0,0,0" Click="CopyTsv_Click"/>
+                <Button Content="复制并关闭" Style="{StaticResource PrimaryButtonStyle}" Width="106" Margin="8,0,0,0" Click="CopyClose_Click"/>
             </StackPanel>
         </StackPanel>
     </Border>

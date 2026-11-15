@@ -97,7 +97,7 @@ public sealed class ScreenshotOcrService
         catch (Exception ex)
         {
             _logger.Warning(ex, "PaddleOCR failed");
-            return new OcrTextResult(string.Empty, Array.Empty<string>(), _paddle.Name, TimeSpan.Zero);
+            return OcrTextResult.Empty(_paddle.Name, TimeSpan.Zero);
         }
     }
 

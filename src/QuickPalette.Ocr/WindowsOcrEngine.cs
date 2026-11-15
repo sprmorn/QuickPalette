@@ -42,7 +42,7 @@ public sealed class WindowsOcrEngine : IOcrEngine
         var sw = System.Diagnostics.Stopwatch.StartNew();
         if (!IsAvailable)
         {
-            return new OcrTextResult(string.Empty, Array.Empty<string>(), Name, sw.Elapsed);
+            return OcrTextResult.Empty(Name, sw.Elapsed);
         }
 
         // 语言优先级：简体中文 > 用户配置 > 第一可用
@@ -59,17 +59,46 @@ public sealed class WindowsOcrEngine : IOcrEngine
 
         if (engine == null)
         {
-            return new OcrTextResult(string.Empty, Array.Empty<string>(), Name, sw.Elapsed);
+            return OcrTextResult.Empty(Name, sw.Elapsed);
         }
 
         using var sb = await EncodeToSoftwareBitmapAsync(bgra, width, height, ct);
         var result = await engine.RecognizeAsync(sb).AsTask(ct);
 
-        var lines = result.Lines?.Select(l => l.Text)
-                .Where(t => !string.IsNullOrWhiteSpace(t)).ToList()
-            ?? new List<string>();
-        var text = string.Join(Environment.NewLine, lines);
-        return new OcrTextResult(text, lines, Name, sw.Elapsed);
+        var lines = new List<string>();
+        var boxes = new List<OcrLineBox>();
+        if (result.Lines != null)
+        {
+            foreach (var line in result.Lines)
+            {
+                var text = line.Text;
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    continue;
+                }
+
+                lines.Add(text);
+
+                // 行几何 = 词框并集
+                double minX = double.MaxValue, minY = double.MaxValue, maxX = 0, maxY = 0;
+                foreach (var w in line.Words)
+                {
+                    var r = w.BoundingRect;
+                    minX = Math.Min(minX, r.X);
+                    minY = Math.Min(minY, r.Y);
+                    maxX = Math.Max(maxX, r.X + r.Width);
+                    maxY = Math.Max(maxY, r.Y + r.Height);
+                }
+
+                if (maxX > minX)
+                {
+                    boxes.Add(new OcrLineBox(text, minX, minY, maxX - minX, maxY - minY));
+                }
+            }
+        }
+
+        var text2 = string.Join(Environment.NewLine, lines);
+        return new OcrTextResult(text2, lines, boxes, Name, sw.Elapsed);
     }
 
     /// <summary>byte[] BGRA → PNG 内存流 → SoftwareBitmap（可靠且无互操作坑）</summary>

@@ -58,7 +58,7 @@ public partial class App : System.Windows.Application
             var window = new Ocr.OcrResultWindow();
             window.ShowRecognizing();
             var result = await _ocrService.RecognizeAsync(bgra, w, h);
-            await Dispatcher.InvokeAsync(() => window.ShowResult(result.Text, result.EngineName, result.Elapsed.TotalSeconds, result.IsEmpty));
+            await Dispatcher.InvokeAsync(() => window.ShowResult(result));
         }
         catch (Exception ex)
         {
